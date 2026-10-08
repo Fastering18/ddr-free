@@ -90,7 +90,7 @@ Result:
 
 ## Status
 
-**v0.0.1, early preview.** Expect rough edges and syntax changes before 1.0.
+**v0.0.2, early preview (prerelease).** Expect rough edges and syntax changes before 1.0.
 
 Working now:
 - `.ddr` use case diagrams, flowcharts and graphs, with live preview and error hints in the editor

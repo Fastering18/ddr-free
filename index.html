@@ -2,22 +2,71 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#5b4cf0" />
-    <meta name="description" content="DDR: Diagram Done Right. Write diagrams as text, get the picture live, drag it and the code follows." />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
+    <title>DDR: Diagram Done Right · text-to-diagram editor for software engineers</title>
+    <meta name="description" content="DDR is a free, offline-first editor for software diagrams and docs. Write use case diagrams, flowcharts and architecture graphs as plain text, see them live, drag nodes and bend edges, and the code updates itself." />
+    <meta name="keywords" content="diagram as code, text to diagram, use case diagram, flowchart, architecture diagram, UML, SRS, software documentation, diagram editor, offline PWA, ddr, tdr" />
+    <meta name="author" content="Fastering18" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="application-name" content="DDR" />
+    <meta name="apple-mobile-web-app-title" content="DDR" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#5b4cf0" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#151820" media="(prefers-color-scheme: dark)" />
     <link rel="icon" type="image/svg+xml" href="./icons/icon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
     <link rel="apple-touch-icon" href="./icons/icon-192.png" />
-    <title>DDR: Diagram Done Right</title>
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="DDR: Diagram Done Right" />
+    <meta property="og:title" content="DDR: Diagram Done Right" />
+    <meta property="og:description" content="Write diagrams as text, see them live, drag them and the code follows. Use case diagrams, flowcharts, architecture graphs and docs in one offline app." />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="The DDR editor: diagram code on the left, the live use case diagram on the right" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="DDR: Diagram Done Right" />
+    <meta name="twitter:description" content="Write diagrams as text, see them live, drag them and the code follows. Free and offline." />
+    <link rel="canonical" href="https://fastering.thedev.id/ddr-free/" />
+    <link rel="sitemap" type="application/xml" title="Sitemap" href="https://fastering.thedev.id/ddr-free/sitemap.xml" />
+    <meta property="og:url" content="https://fastering.thedev.id/ddr-free/" />
+    <meta property="og:image" content="https://fastering.thedev.id/ddr-free/og.png" />
+    <meta property="og:image:secure_url" content="https://fastering.thedev.id/ddr-free/og.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta name="twitter:image" content="https://fastering.thedev.id/ddr-free/og.png" />
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"DDR: Diagram Done Right","alternateName":"DDR","url":"https://fastering.thedev.id/ddr-free/","image":"https://fastering.thedev.id/ddr-free/og.png","screenshot":"https://fastering.thedev.id/ddr-free/og.png","applicationCategory":"DeveloperApplication","applicationSubCategory":"Diagram editor","operatingSystem":"Any (web browser), Windows, macOS, Linux, Android, iOS","softwareVersion":"0.0.2","description":"Offline-first editor for software diagrams and docs. Write use case diagrams, flowcharts and architecture graphs as text, see them live, and drag them while the code follows.","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@type":"Person","name":"Fastering18","url":"https://github.com/Fastering18"},"featureList":["Diagrams as text (.ddr)","Documents with live diagrams (.tdr)","Two-way code and diagram editing","Straight and curved edges with bends","SVG and PNG export","Works offline (PWA)"]}</script>
+
     <script>
       try {
         const t = localStorage.getItem('ddr.theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
         document.documentElement.dataset.theme = t
       } catch {}
     </script>
-    <script type="module" crossorigin src="./assets/index-DcsaPoxQ.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-CQy6suNK.css">
+    <script type="module" crossorigin src="./assets/index-CaxhBNw_.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-z5CokylX.css">
   <link rel="manifest" href="./manifest.webmanifest"></head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <!-- Static intro for crawlers and no-JS visitors. The app replaces it on load. -->
+      <main id="ddr-static" style="max-width:720px;margin:0 auto;padding:40px 20px;font-family:system-ui,sans-serif;line-height:1.6">
+        <h1>DDR: Diagram Done Right</h1>
+        <p>DDR is an all-in-one editor for software engineers. Write diagrams as plain text in <code>.ddr</code> files and documents in <code>.tdr</code> files, and see the result live next to the code.</p>
+        <h2>Features</h2>
+        <ul>
+          <li>Use case diagrams, flowcharts and architecture graphs from a short, readable text syntax.</li>
+          <li>Two-way editing: drag nodes, bend edges into straight or curved lines, and the code updates only that part.</li>
+          <li>Documents with embedded live diagrams, ready to print or save as PDF.</li>
+          <li>Export diagrams as SVG or PNG.</li>
+          <li>Works offline as an installable app. Projects stay in your browser.</li>
+          <li>Responsive layout with resizable panels on desktop and mobile.</li>
+        </ul>
+        <noscript><p><strong>DDR needs JavaScript to run.</strong> Please enable it to open the editor.</p></noscript>
+      </main>
+    </div>
   </body>
 </html>
