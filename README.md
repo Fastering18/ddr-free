@@ -58,6 +58,129 @@ Click an edge to get midpoint handles, drag them to bend the line, and switch be
 
 ![Editing an edge](readme/edge-editing.png)
 
+### Activity diagram with swimlanes
+
+From the **Parking Entry & Exit** template. `Lane: step` puts a step in a lane, and every early `end` joins the single final node.
+
+```
+Type: Activity
+Title: Enter Parking with Slot Recommendation
+Lanes: Driver, System
+
+Flow {
+  Driver: Arrive at the entry gate
+  System: Check for a free slot
+  if Slot available? [yes: yes, no: no] {
+    Recommend the nearest slot
+    Driver: Tap card at the gate
+    System: Read the card
+    if Card valid? [yes: valid, no: invalid] {
+      parallel {
+        Open the barrier
+      } and {
+        Record entry time
+      } and {
+        Decrease free slot count
+      }
+      Driver: Drive to the recommended slot
+    } else {
+      System: Show card rejected message
+      end
+    }
+  } else {
+    System: "Show warning: check another area"
+    end
+  }
+}
+```
+
+<img src="readme/parking-entry.png" alt="Rendered activity diagram: enter parking with slot recommendation" width="620">
+
+### Entity relationship diagram (Chen)
+
+From the **Hospital & Library ERD** template. `*` marks a key, `**` a foreign key, and a relation lists the entities it joins with their cardinality.
+
+```
+Type: ERD
+Title: Library
+
+Entities:
+- Member {
+    Member ID *
+    Name
+    Address
+    Phone
+  }
+- Book {
+    ISBN *
+    Title
+    Author
+    Publisher ID **
+  }
+- Publisher {
+    Publisher ID *
+    Publisher Name
+  }
+
+Relations:
+- Borrows {
+    Member: M
+    Book: N
+    Loan Date
+    Return Date
+  }
+- Publishes {
+    Publisher: 1
+    Book: N
+  }
+```
+
+<img src="readme/library-erd.png" alt="Rendered Chen ER diagram of a library" width="620">
+
+### Conceptual and physical data models
+
+From the **Library Data Model** template. The `Ref:` arrow gives the cardinality: `<` one-to-many, `-` one-to-one.
+
+```
+Type: PDM
+Title: Library
+
+Tables:
+- members {
+    member_id: bigint [pk];
+    full_name: varchar(120) [not null];
+    email: varchar(180) [unique, not null];
+    phone: varchar(32) [null]
+  }
+- loans {
+    loan_id: bigint [pk];
+    member_id: bigint [not null];
+    copy_id: bigint [not null, unique];
+    loan_date: date [not null];
+    due_date: date [not null]
+  }
+- books {
+    book_id: bigint [pk];
+    title: varchar(200) [not null];
+    author: varchar(160) [not null]
+  }
+- copies {
+    copy_id: bigint [pk];
+    book_id: bigint [not null];
+    shelf_code: varchar(16) [not null]
+  }
+
+Ref: members.member_id < loans.member_id
+Ref: copies.copy_id - loans.copy_id
+Ref: books.book_id < copies.book_id
+```
+
+<img src="readme/library-pdm.png" alt="Rendered physical data model of a library" width="620">
+
+The same model as a CDM:
+
+<img src="readme/library-cdm.png" alt="Rendered conceptual data model of a library" width="620">
+
 ### `.tdr` code to document
 
 ```
