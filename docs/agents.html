@@ -1,0 +1,2060 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DDR for agents: MCP server, skills and strict syntax · DDR 0.0.5-alpha.5</title>
+  <meta name="description" content="Set up the DDR MCP server (ddr mcp), download SKILL.md and use the strict DDR grammar, diagnostic codes and fixes." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://fastering.thedev.id/ddr-free/docs/agents.html" />
+  <meta property="og:url" content="https://fastering.thedev.id/ddr-free/docs/agents.html" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="DDR for agents: MCP server, skills and strict syntax" />
+  <meta property="og:description" content="Set up the DDR MCP server (ddr mcp), download SKILL.md and use the strict DDR grammar, diagnostic codes and fixes." />
+  <link rel="alternate" type="text/markdown" href="agents.md" />
+  <link rel="icon" href="../icons/icon.svg" type="image/svg+xml" />
+  <style>body{font:15px/1.6 system-ui,sans-serif;max-width:920px;margin:0 auto;padding:24px;color:#1d2230}pre{background:#f4f5f8;padding:10px;overflow:auto;border-radius:8px}code{font-size:13px}table{border-collapse:collapse;display:block;overflow:auto}td,th{border:1px solid #dde;padding:4px 8px;vertical-align:top}a{color:#5b4cf0}.bar{position:sticky;top:0;background:#fff;padding:8px 0;border-bottom:1px solid #eee}</style>
+</head>
+<body>
+<div class="bar"><a href="../#/docs/agents">Open the interactive page in DDR</a> · <a href="syntax.html">Syntax reference</a> · <a href="agents.html">For agents (MCP)</a></div>
+<h1>DDR for agents: MCP, skills and strict syntax</h1>
+<blockquote>
+<p>Machine-oriented DDR guide: MCP server setup and tools, a downloadable SKILL.md, a strict grammar for every diagram type, diagnostic codes with fixes, and do/don&#39;t rules.</p>
+</blockquote>
+<p>Generated from the DDR engine 0.0.5-alpha.5 (docs/spec, core/ddr/diag.go, internal/server, docs/examples) by <code>go run ./cmd/ddr-docs</code>. Do not edit by hand.</p>
+<p>Human-friendly reference: /docs/syntax.md · This file is also served as /llms.txt and /docs/agents.md.</p>
+<h2>Rules</h2>
+<p>Workflow: <code>get_syntax</code> → write the source → <code>check</code> until <code>ok</code> is true (no errors, no warnings) → <code>format</code> → <code>render</code>.</p>
+<p><strong>Do</strong></p>
+<ul>
+<li>Start every .ddr file with <code>Type:</code> and <code>Title:</code> lines, then a blank line.</li>
+<li>Use exactly the <code>Type:</code> values in the type list; use <code>Type: Graph</code> for architecture diagrams.</li>
+<li>Declare every node before an edge or <code>goto</code> names it, and give nodes you reference an explicit id (<code>pay: Enter payment</code>).</li>
+<li>Indent with spaces (two per level). One statement per line.</li>
+<li>Quote labels that contain <code>;</code>, <code>{</code>, <code>}</code>, <code>[</code>, <code>-&gt;</code> or start with a keyword.</li>
+<li>Run <code>check</code> after every edit and fix every error and warning before you answer.</li>
+<li>Run <code>format</code> (or <code>ddr fmt -w</code>) to normalize the file; it never reorders statements.</li>
+</ul>
+<p><strong>Don&#39;t</strong></p>
+<ul>
+<li>Don&#39;t invent types (<code>Sequence</code>, <code>Class</code>, <code>Architecture</code> and <code>UserStory</code> are not types).</li>
+<li>Don&#39;t use tabs (W101) or Markdown fences inside a .ddr file.</li>
+<li>Don&#39;t add <code>[x, y]</code> or <code>[via: …]</code> unless the user asked for fixed positions; auto layout is better.</li>
+<li>Don&#39;t write <code>[x, y]</code> in activities: they are ignored (W110).</li>
+<li>Don&#39;t repeat foreign keys in a CDM; the <code>Ref:</code> line is the link.</li>
+<li>Don&#39;t put chains (<code>a -&gt; b</code>) inside ERD relations, or <code>-&gt;</code> after a <code>goto</code>.</li>
+<li>Don&#39;t use <code>//</code> or trailing comments: only full-line <code>#</code> comments exist.</li>
+<li>Don&#39;t run <code>check</code> on a .tdr document (E108); check the .ddr files it embeds.</li>
+</ul>
+<h2>Diagram types</h2>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th><code>Type:</code></th>
+<th>file</th>
+<th>views</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="#flowchart">flowchart</a></td>
+<td><code>Flowchart</code></td>
+<td><code>.ddr</code></td>
+<td><code>flow</code></td>
+</tr>
+<tr>
+<td><a href="#graph">graph</a></td>
+<td><code>Graph</code></td>
+<td><code>.ddr</code></td>
+<td><code>graph</code></td>
+</tr>
+<tr>
+<td><a href="#architecture">architecture</a></td>
+<td><code>Graph</code></td>
+<td><code>.ddr</code></td>
+<td><code>graph</code></td>
+</tr>
+<tr>
+<td><a href="#usecase">usecase</a></td>
+<td><code>UseCase</code></td>
+<td><code>.ddr</code></td>
+<td><code>overview</code>, plus <code>flow: &lt;use case&gt;</code> per use case with a <code>Flow</code></td>
+</tr>
+<tr>
+<td><a href="#activity">activity</a></td>
+<td><code>Activity</code></td>
+<td><code>.ddr</code></td>
+<td><code>activity</code></td>
+</tr>
+<tr>
+<td><a href="#cdm">cdm</a></td>
+<td><code>CDM</code></td>
+<td><code>.ddr</code></td>
+<td><code>cdm</code></td>
+</tr>
+<tr>
+<td><a href="#pdm">pdm</a></td>
+<td><code>PDM</code></td>
+<td><code>.ddr</code></td>
+<td><code>pdm</code></td>
+</tr>
+<tr>
+<td><a href="#erd">erd</a></td>
+<td><code>ERD</code></td>
+<td><code>.ddr</code></td>
+<td><code>erd</code></td>
+</tr>
+<tr>
+<td><a href="#tdr">tdr</a></td>
+<td>-</td>
+<td><code>.tdr</code></td>
+<td>page preview</td>
+</tr>
+</tbody></table>
+<h2>MCP server</h2>
+<p><code>ddr mcp</code> runs a Model Context Protocol server over <strong>stdio</strong> (newline-delimited JSON-RPC 2.0, protocol 2025-06-18). Install the CLI from the GitHub releases (or <code>go install github.com/Fastering18/ddr/cmd/ddr@latest</code>), then add it to your client.</p>
+<p><strong>Cursor</strong> (<code>.cursor/mcp.json</code> or <code>~/.cursor/mcp.json</code>):</p>
+<pre><code class="language-json">{
+  &quot;mcpServers&quot;: {
+    &quot;ddr&quot;: { &quot;command&quot;: &quot;ddr&quot;, &quot;args&quot;: [&quot;mcp&quot;] }
+  }
+}
+</code></pre>
+<p><strong>Claude Desktop</strong> (<code>claude_desktop_config.json</code>):</p>
+<pre><code class="language-json">{
+  &quot;mcpServers&quot;: {
+    &quot;ddr&quot;: { &quot;command&quot;: &quot;/usr/local/bin/ddr&quot;, &quot;args&quot;: [&quot;mcp&quot;] }
+  }
+}
+</code></pre>
+<p><strong>Any stdio client:</strong> start <code>ddr mcp</code> and write one JSON-RPC message per line:</p>
+<pre><code class="language-jsonl">{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:1,&quot;method&quot;:&quot;initialize&quot;,&quot;params&quot;:{&quot;protocolVersion&quot;:&quot;2025-06-18&quot;,&quot;capabilities&quot;:{},&quot;clientInfo&quot;:{&quot;name&quot;:&quot;me&quot;,&quot;version&quot;:&quot;1&quot;}}}
+{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;method&quot;:&quot;notifications/initialized&quot;}
+{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:2,&quot;method&quot;:&quot;tools/list&quot;}
+{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:3,&quot;method&quot;:&quot;tools/call&quot;,&quot;params&quot;:{&quot;name&quot;:&quot;check&quot;,&quot;arguments&quot;:{&quot;source&quot;:&quot;Type: Flowchart\nTitle: T\n\nFlow {\n  Start\n  End\n}\n&quot;}}}
+</code></pre>
+<p><strong>HTTP clients:</strong> the server has no HTTP transport of its own. Run <code>ddr mcp</code> behind any stdio-to-HTTP MCP bridge, or call the same core with the CLI (<code>ddr check</code>, <code>ddr render</code>).</p>
+<h3>Tools</h3>
+<h4><code>check</code></h4>
+<p>Parse and analyze a .ddr source (a .tdr document gives only E108: check its .ddr files instead). Returns JSON {ok, errors, warnings, diagnostics:[{code,severity,message,line,col}], views:[{kind,name}]}. ok is true only when there are no errors and no warnings.</p>
+<p>Input schema:</p>
+<pre><code class="language-json">{
+  &quot;additionalProperties&quot;: false,
+  &quot;properties&quot;: {
+    &quot;source&quot;: {
+      &quot;description&quot;: &quot;Full text of a .ddr file.&quot;,
+      &quot;type&quot;: &quot;string&quot;
+    }
+  },
+  &quot;required&quot;: [
+    &quot;source&quot;
+  ],
+  &quot;type&quot;: &quot;object&quot;
+}
+</code></pre>
+<h4><code>render</code></h4>
+<p>Render a .ddr source to a standalone SVG document. Diagnostics, if any, follow the SVG after a line <code>&lt;!-- diagnostics --&gt;</code>.</p>
+<p>Input schema:</p>
+<pre><code class="language-json">{
+  &quot;additionalProperties&quot;: false,
+  &quot;properties&quot;: {
+    &quot;source&quot;: {
+      &quot;description&quot;: &quot;Full text of a .ddr file.&quot;,
+      &quot;type&quot;: &quot;string&quot;
+    },
+    &quot;theme&quot;: {
+      &quot;default&quot;: &quot;light&quot;,
+      &quot;enum&quot;: [
+        &quot;light&quot;,
+        &quot;dark&quot;
+      ],
+      &quot;type&quot;: &quot;string&quot;
+    },
+    &quot;view&quot;: {
+      &quot;description&quot;: &quot;View name from check (default: the first view).&quot;,
+      &quot;type&quot;: &quot;string&quot;
+    }
+  },
+  &quot;required&quot;: [
+    &quot;source&quot;
+  ],
+  &quot;type&quot;: &quot;object&quot;
+}
+</code></pre>
+<h4><code>format</code></h4>
+<p>Format a .ddr source like <code>ddr fmt</code> (idempotent, keeps comments, never reorders). Returns the formatted text, or an error listing the syntax errors.</p>
+<p>Input schema:</p>
+<pre><code class="language-json">{
+  &quot;additionalProperties&quot;: false,
+  &quot;properties&quot;: {
+    &quot;source&quot;: {
+      &quot;description&quot;: &quot;Full text of a .ddr file.&quot;,
+      &quot;type&quot;: &quot;string&quot;
+    }
+  },
+  &quot;required&quot;: [
+    &quot;source&quot;
+  ],
+  &quot;type&quot;: &quot;object&quot;
+}
+</code></pre>
+<h4><code>list_types</code></h4>
+<p>List every diagram and document type: id, the <code>Type:</code> header value, accepted aliases, file extension, views and a one-line summary.</p>
+<p>Input schema:</p>
+<pre><code class="language-json">{
+  &quot;additionalProperties&quot;: false,
+  &quot;properties&quot;: {},
+  &quot;type&quot;: &quot;object&quot;
+}
+</code></pre>
+<h4><code>get_syntax</code></h4>
+<p>Return the strict DDR syntax guide for agents (Markdown). Pass <code>type</code> (an id from list_types) for just that type&#39;s section.</p>
+<p>Input schema:</p>
+<pre><code class="language-json">{
+  &quot;additionalProperties&quot;: false,
+  &quot;properties&quot;: {
+    &quot;type&quot;: {
+      &quot;description&quot;: &quot;Optional type id, e.g. flowchart, erd.&quot;,
+      &quot;type&quot;: &quot;string&quot;
+    }
+  },
+  &quot;type&quot;: &quot;object&quot;
+}
+</code></pre>
+<h2>Skills</h2>
+<p>Download <a href="../docs/SKILL.md">SKILL.md</a> and put it in your agent&#39;s skills folder (for example <code>.cursor/skills/ddr/SKILL.md</code> or <code>~/.claude/skills/ddr/SKILL.md</code>). It tells the agent when to use DDR, the workflow, the rules and one example per type, and points to the MCP tools when they are available.</p>
+<p>Raw Markdown of this page: <a href="../docs/agents.md">/docs/agents.md</a> and <a href="../llms.txt">/llms.txt</a>.</p>
+<h2>Header keys</h2>
+<p>The header is <code>Key: value</code> lines at the top of the file, ending at the first blank line. Keys are case-insensitive; unknown keys give W102 and are kept.</p>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>required</th>
+<th>values</th>
+<th>default</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Type</code></td>
+<td><strong>yes</strong></td>
+<td>see the type list</td>
+<td>-</td>
+<td>Selects the diagram type. Missing: W106; unknown: W107.</td>
+</tr>
+<tr>
+<td><code>Title</code></td>
+<td>no</td>
+<td>text</td>
+<td>-</td>
+<td>Diagram title. Missing: W106 (warning only).</td>
+</tr>
+<tr>
+<td><code>Author</code></td>
+<td>no</td>
+<td>text</td>
+<td>-</td>
+<td>Metadata, not drawn.</td>
+</tr>
+<tr>
+<td><code>Date</code></td>
+<td>no</td>
+<td>text (ISO date recommended)</td>
+<td>-</td>
+<td>Metadata, not drawn.</td>
+</tr>
+<tr>
+<td><code>Version</code></td>
+<td>no</td>
+<td>text</td>
+<td>-</td>
+<td>Metadata.</td>
+</tr>
+<tr>
+<td><code>Status</code></td>
+<td>no</td>
+<td>text</td>
+<td>-</td>
+<td>Metadata.</td>
+</tr>
+<tr>
+<td><code>Tags</code></td>
+<td>no</td>
+<td>comma list</td>
+<td>-</td>
+<td>Metadata.</td>
+</tr>
+<tr>
+<td><code>Theme</code></td>
+<td>no</td>
+<td><code>light</code> <code>dark</code></td>
+<td>light</td>
+<td>Preferred theme for exports.</td>
+</tr>
+<tr>
+<td><code>Format</code></td>
+<td>no</td>
+<td>text</td>
+<td>-</td>
+<td>Metadata.</td>
+</tr>
+<tr>
+<td><code>Direction</code></td>
+<td>no</td>
+<td><code>TB</code> <code>LR</code></td>
+<td><code>TB</code> (<code>LR</code> for CDM/PDM)</td>
+<td>Main layout direction. Also accepted inside a <code>Layout:</code> section. Ignored in Activity (W110).</td>
+</tr>
+<tr>
+<td><code>Lang</code></td>
+<td>no</td>
+<td><code>en</code> <code>id</code></td>
+<td>en</td>
+<td>Language of generated use case specification text.</td>
+</tr>
+<tr>
+<td><code>Line Jumps</code></td>
+<td>no</td>
+<td><code>on</code> <code>off</code></td>
+<td>on</td>
+<td>Draw a small hop where two straight lines cross.</td>
+</tr>
+</tbody></table>
+<h2>Lines, comments and strings</h2>
+<ul>
+<li><strong>Comments:</strong> a full line starting with <code>#</code>. <code>Order #123</code> is text, and there are no trailing or <code>//</code> comments. <code>ddr fmt</code> keeps comments; an empty comment stays a bare <code>#</code>.</li>
+<li><strong>Statements:</strong> inside <code>{ }</code> a statement ends at <code>;</code> or a newline; the trailing <code>;</code> is optional. In indented lists, one item per line after <code>- </code>.</li>
+<li><strong>Indentation:</strong> spaces only (tabs give W101).</li>
+<li><strong>Colons</strong> mean something only after a key at the start of a line (<code>Description:</code>), in an item head (<code>- Customer: Login</code>), and after an id (<code>pay: Enter payment</code>). Anywhere else a colon is text.</li>
+<li><strong>Strings:</strong> plain text by default. Quote with <code>&quot;…&quot;</code> when a label contains <code>;</code>, <code>{</code>, <code>}</code>, <code>[</code>, <code>-&gt;</code>, starts with a keyword, or spans lines. Escapes: <code>\&quot;</code>, <code>\\</code>, <code>\n</code>.</li>
+<li><strong>Multiline labels:</strong> a quoted label may continue on the next lines; leading blanks up to the statement&#39;s column are dropped.</li>
+</ul>
+<pre><code class="language-ddr"># A comment line
+Type: Flowchart
+Title: Lexical example
+
+Flow {
+  Start
+  Read order #123
+  note: &quot;Contains; a semicolon&quot;
+  End
+}
+</code></pre>
+<h2>Sections</h2>
+<p>A section is <code>Name:</code> followed by an indented <code>- </code> list, or <code>Name { … }</code> (a block). Section names are case-insensitive.</p>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>used in</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Actors</code></td>
+<td>UseCase</td>
+<td>Actor list.</td>
+</tr>
+<tr>
+<td><code>Use Cases</code></td>
+<td>UseCase</td>
+<td>Use case list; alias <code>UseCases</code>.</td>
+</tr>
+<tr>
+<td><code>Flow</code></td>
+<td>Flowchart, Activity, use cases</td>
+<td>The flow block.</td>
+</tr>
+<tr>
+<td><code>Activity</code></td>
+<td>Activity</td>
+<td>Alias of <code>Flow</code> in activities.</td>
+</tr>
+<tr>
+<td><code>Graph</code></td>
+<td>Graph</td>
+<td>Nodes and edges; alias <code>Nodes</code>.</td>
+</tr>
+<tr>
+<td><code>Nodes</code></td>
+<td>Graph</td>
+<td>Alias of <code>Graph</code>.</td>
+</tr>
+<tr>
+<td><code>Edges</code></td>
+<td>Graph</td>
+<td>Extra edges for the graph.</td>
+</tr>
+<tr>
+<td><code>Entities</code></td>
+<td>CDM, PDM, ERD</td>
+<td>Entity list; alias <code>Entity</code>.</td>
+</tr>
+<tr>
+<td><code>Entity</code></td>
+<td>CDM, PDM, ERD</td>
+<td>Alias of <code>Entities</code>.</td>
+</tr>
+<tr>
+<td><code>Tables</code></td>
+<td>PDM</td>
+<td>Table list; alias <code>Table</code>.</td>
+</tr>
+<tr>
+<td><code>Table</code></td>
+<td>PDM</td>
+<td>Alias of <code>Tables</code>.</td>
+</tr>
+<tr>
+<td><code>Relations</code></td>
+<td>ERD</td>
+<td>Relation list; alias <code>Relation</code>.</td>
+</tr>
+<tr>
+<td><code>Relation</code></td>
+<td>ERD</td>
+<td>Alias of <code>Relations</code>.</td>
+</tr>
+<tr>
+<td><code>References</code></td>
+<td>CDM, PDM</td>
+<td>Reference list; also <code>Ref { }</code> or <code>Ref:</code> lines; <code>Refs</code> for per-segment <code>via</code>.</td>
+</tr>
+<tr>
+<td><code>Layout</code></td>
+<td>all</td>
+<td>Section form of layout keys: <code>Layout:</code> then <code>Direction: LR</code>.</td>
+</tr>
+<tr>
+<td><code>Numbering</code></td>
+<td>UseCase</td>
+<td>Header: use case codes.</td>
+</tr>
+<tr>
+<td><code>Show Codes</code></td>
+<td>UseCase</td>
+<td>Header: print codes.</td>
+</tr>
+<tr>
+<td><code>Min Use Cases</code></td>
+<td>UseCase</td>
+<td>Header: W120 threshold (default 6).</td>
+</tr>
+<tr>
+<td><code>Lanes</code></td>
+<td>Activity</td>
+<td>Header: swimlanes.</td>
+</tr>
+<tr>
+<td><code>Line Jumps</code></td>
+<td>all</td>
+<td>Header: <code>off</code> disables line hops.</td>
+</tr>
+</tbody></table>
+<h2>Ids, labels and attributes</h2>
+<p>Every node is <code>id: Label [key: value, flag]</code>. Without an id the id is the slug of the label (<code>Enter payment details</code> → <code>enter-payment-details</code>). Ids match <code>[A-Za-z_][A-Za-z0-9_.-]*</code>. Several attribute groups are allowed: <code>Login [shape: round] [x: 10, y: 20]</code>. Unknown attributes give W105.</p>
+<p>Node attributes:</p>
+<table>
+<thead>
+<tr>
+<th>attribute</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>x</code> <code>y</code></td>
+<td>Pinned centre position (numbers). Without them the node gets auto layout. Ignored in Activity (W110).</td>
+</tr>
+<tr>
+<td><code>w</code> <code>h</code></td>
+<td>Size override (numbers).</td>
+</tr>
+<tr>
+<td><code>shape</code></td>
+<td><code>rect</code> <code>round</code> <code>pill</code> <code>ellipse</code> <code>circle</code> <code>diamond</code> <code>parallelogram</code> <code>actor</code> <code>cylinder</code> <code>box</code>.</td>
+</tr>
+<tr>
+<td><code>color</code></td>
+<td><code>accent</code> <code>purple</code> <code>amber</code> <code>orange</code> <code>teal</code> <code>pink</code> <code>blue</code> <code>green</code> <code>red</code> <code>gray</code>, or <code>#hex</code>.</td>
+</tr>
+<tr>
+<td><code>style</code></td>
+<td>Node style hint.</td>
+</tr>
+<tr>
+<td><code>label</code></td>
+<td>Display label when the id is all you wrote.</td>
+</tr>
+<tr>
+<td><code>id</code></td>
+<td>Alias for the node, same as an <code>id:</code> prefix. One word (E107 otherwise); a duplicate is E204.</td>
+</tr>
+<tr>
+<td><code>system</code> <code>external</code> <code>primary</code> <code>secondary</code> <code>deprecated</code></td>
+<td>Flags: actor and use case kinds.</td>
+</tr>
+<tr>
+<td><code>side</code></td>
+<td>Actors: <code>left</code> or <code>right</code> of the system boundary.</td>
+</tr>
+<tr>
+<td><code>code</code></td>
+<td>Use case code set by hand, e.g. <code>[code: UC07]</code>.</td>
+</tr>
+<tr>
+<td><code>spec</code></td>
+<td>Use case specification table: <code>own</code> or <code>none</code>.</td>
+</tr>
+<tr>
+<td><code>identifier</code> <code>pi</code></td>
+<td>CDM identifier (<code>&lt;pi&gt;</code> and <code>&lt;M&gt;</code>); also a key in PDM.</td>
+</tr>
+<tr>
+<td><code>pk</code> <code>fk</code></td>
+<td>PDM primary / foreign key column.</td>
+</tr>
+<tr>
+<td><code>unique</code></td>
+<td>PDM unique column (kept, not drawn).</td>
+</tr>
+<tr>
+<td><code>null</code> <code>nullable</code> <code>not null</code> <code>nn</code> <code>required</code></td>
+<td>PDM nullability (kept, not drawn); <code>required</code> / <code>[mandatory]</code> / <code>[M]</code> mark CDM <code>&lt;M&gt;</code>.</td>
+</tr>
+</tbody></table>
+<h2>Positions and bends</h2>
+<ul>
+<li><code>[x: 120, y: 80]</code> pins a node&#39;s centre (the editor writes it when you drag a node). Nodes without positions get auto layout.</li>
+<li><code>[via: (220,120) (220,300)]</code> on an edge sets its bend points in order (the editor writes it when you drag a line).</li>
+<li>ERD attributes take <code>[x, y]</code> too. Activities ignore both (W110).</li>
+</ul>
+<pre><code class="language-ddr">Type: Graph
+Title: Pinned
+
+Graph {
+  a: Client [x: 100, y: 80]
+  b: Server [x: 400, y: 80]
+  a -&gt; b: request [via: (250,20)]
+}
+</code></pre>
+<h2>Edges and chains</h2>
+<table>
+<thead>
+<tr>
+<th>where</th>
+<th>syntax</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Graph, Flowchart, Activity</td>
+<td><code>a -&gt; b</code> / <code>a -&gt; b: label [attrs]</code></td>
+</tr>
+<tr>
+<td>Flow step</td>
+<td><code>step -&gt; [attrs]</code> styles the implicit edge to the next step; <code>step -&gt; target</code> adds an edge</td>
+</tr>
+<tr>
+<td><code>if</code></td>
+<td><code>if ok? -&gt; [yes attrs] -&gt; [no attrs] { … }</code></td>
+</tr>
+<tr>
+<td><code>goto</code></td>
+<td><code>goto id [attrs]</code> (no <code>-&gt;</code> after it: W127)</td>
+</tr>
+<tr>
+<td>Use case</td>
+<td><code>- Customer: Register -&gt; Customer [attrs]</code></td>
+</tr>
+<tr>
+<td>CDM / PDM</td>
+<td><code>Ref: a.id &lt; b.a_id: name [attrs]</code> with <code>&lt;</code> <code>&gt;</code> <code>-</code> <code>&lt;&gt;</code></td>
+</tr>
+</tbody></table>
+<p><strong>Chains.</strong> <code>a -&gt; b -&gt; c</code> adds one edge per consecutive pair. A label (<code>: text</code>) and attribute groups belong to the segment they follow; nothing is copied to other segments. Spaces around <code>-&gt;</code> are optional (<code>a-&gt;b-&gt;c</code>). Every unknown node is E203; nodes are never created by an edge. A targetless <code>-&gt; [..]</code> inside a chain or a trailing <code>-&gt;</code> is ignored with W126. References chain with their own operators: <code>Ref: a.id &lt; b.a_id: owns &lt; c.b_id: keeps</code>.</p>
+<p>Edge attributes:</p>
+<table>
+<thead>
+<tr>
+<th>attribute</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>via</code></td>
+<td>Bend points in order: <code>[via: (120,80) (240,80)]</code>.</td>
+</tr>
+<tr>
+<td><code>style</code></td>
+<td><code>straight</code> (default, polyline) or <code>curve</code>.</td>
+</tr>
+<tr>
+<td><code>label</code></td>
+<td>Edge label (same as <code>: text</code>).</td>
+</tr>
+<tr>
+<td><code>dash</code> <code>dashed</code></td>
+<td>Flag: dashed line.</td>
+</tr>
+<tr>
+<td><code>arrow</code></td>
+<td><code>end</code> (default) <code>none</code> <code>both</code>.</td>
+</tr>
+<tr>
+<td><code>color</code></td>
+<td>As for nodes.</td>
+</tr>
+<tr>
+<td><code>head</code></td>
+<td>Arrowhead: <code>triangle</code> (generalization), <code>open</code>, <code>filled</code>.</td>
+</tr>
+<tr>
+<td><code>from</code> <code>to</code></td>
+<td>Explicit endpoints on a data-model reference.</td>
+</tr>
+</tbody></table>
+<pre><code class="language-ddr">Type: Graph
+Title: Chain
+
+Graph {
+  a: Browser
+  b: API
+  c: Database [shape: cylinder]
+  a -&gt; b: HTTPS -&gt; c: SQL [dashed]
+}
+</code></pre>
+<h2>Flow statements</h2>
+<p>Used in Flowchart, Activity and use case <code>Flow { }</code> blocks. Keywords count only at the start of a statement and are case-insensitive: <code>if</code>, <code>elif</code>, <code>else</code>, <code>loop</code>, <code>goto</code>, <code>Start</code>, <code>End</code>; in activities also <code>parallel</code> … <code>and</code>, <code>stop</code>.</p>
+<pre><code class="language-ebnf">stmt = step | &quot;Start&quot; [label] | &quot;End&quot; [label]
+     | &quot;if&quot; cond block { &quot;elif&quot; cond block } [ &quot;else&quot; block ]
+     | &quot;loop&quot; [cond] block | &quot;goto&quot; id | id &quot;:&quot; label | edge
+     | &quot;parallel&quot; block { &quot;and&quot; block } | &quot;stop&quot; ;   (* activity only *)
+</code></pre>
+<ul>
+<li><code>if cond? { … }</code> leaves by <code>Yes</code> into the block and by <code>No</code> past it.</li>
+<li><code>loop cond? { … }</code> asks before each pass; <code>loop { … }</code> asks <code>Repeat?</code>.</li>
+<li><code>@Name</code> in a step links it to an actor.</li>
+<li>Line jumps: where two straight lines cross, one hops over the other. <code>Line Jumps: off</code> turns it off.</li>
+</ul>
+<h2>Diagnostic codes</h2>
+<p>Every code the engine emits (read from <code>core/ddr/diag.go</code>). <code>E</code> codes are errors: the diagram is not drawn correctly. <code>W</code> codes are warnings: drawn, but fix them.</p>
+<table>
+<thead>
+<tr>
+<th>code</th>
+<th>severity</th>
+<th>meaning</th>
+<th>fix</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>E101</code></td>
+<td>error</td>
+<td>unclosed <code>{</code></td>
+<td>Add the missing <code>}</code> (or remove the stray <code>{</code>).</td>
+</tr>
+<tr>
+<td><code>E102</code></td>
+<td>error</td>
+<td>bad indentation</td>
+<td>Indent with spaces to match the item above; fields go two spaces under their <code>- </code> item.</td>
+</tr>
+<tr>
+<td><code>E103</code></td>
+<td>error</td>
+<td>unknown or unexpected statement (also an empty actor group, <code>- Clerk {}</code>)</td>
+<td>Check the statement spelling, or quote the label (<code>&quot;if this is text&quot;</code>). An actor group needs at least one case.</td>
+</tr>
+<tr>
+<td><code>E104</code></td>
+<td>error</td>
+<td>unexpected <code>}</code></td>
+<td>Remove the extra <code>}</code>.</td>
+</tr>
+<tr>
+<td><code>E105</code></td>
+<td>error</td>
+<td>unclosed <code>&quot;</code></td>
+<td>Close the string with <code>&quot;</code>, or escape a literal quote as <code>\&quot;</code>.</td>
+</tr>
+<tr>
+<td><code>E106</code></td>
+<td>error</td>
+<td>unclosed <code>[</code></td>
+<td>Close the attribute group with <code>]</code>.</td>
+</tr>
+<tr>
+<td><code>E107</code></td>
+<td>error</td>
+<td>bad attribute syntax</td>
+<td>Write attributes as <code>[key: value, flag]</code>; an <code>id</code> is one word.</td>
+</tr>
+<tr>
+<td><code>E108</code></td>
+<td>error</td>
+<td>a <code>.tdr</code> document given to <code>check</code> (prose with embedded <code>.ddr</code> diagrams): check the <code>.ddr</code> files it embeds instead</td>
+<td>Run <code>check</code> on the <code>.ddr</code> files the document embeds (the paths in <code>::diagram[...]</code> / <code>::usecases[...]</code>), not on the <code>.tdr</code> itself.</td>
+</tr>
+<tr>
+<td><code>E201</code></td>
+<td>error</td>
+<td>unknown actor</td>
+<td>Declare the actor under <code>Actors:</code> or fix its spelling.</td>
+</tr>
+<tr>
+<td><code>E202</code></td>
+<td>error</td>
+<td>unknown use case in <code>Includes</code> / <code>Extends</code></td>
+<td>Name an existing use case in <code>Includes</code> / <code>Extends</code>.</td>
+</tr>
+<tr>
+<td><code>E203</code></td>
+<td>error</td>
+<td>unknown edge or goto target</td>
+<td>Declare the target node (with <code>id: Label</code>) before using it in an edge or <code>goto</code>; edges never create nodes.</td>
+</tr>
+<tr>
+<td><code>E204</code></td>
+<td>error</td>
+<td>duplicate id</td>
+<td>Give each node a unique id.</td>
+</tr>
+<tr>
+<td><code>E205</code></td>
+<td>error</td>
+<td>activity: unknown lane (not in <code>Lanes:</code>)</td>
+<td>Add the lane to <code>Lanes:</code> or fix the prefix.</td>
+</tr>
+<tr>
+<td><code>E206</code></td>
+<td>error</td>
+<td>activity: more than one start (<code>start</code> written twice or after a step)</td>
+<td>Write <code>start</code> at most once, as the first statement (it is implicit anyway).</td>
+</tr>
+<tr>
+<td><code>E207</code></td>
+<td>error</td>
+<td>data model: a relationship names an entity or table that is not declared</td>
+<td>Declare the entity or table, or fix the name in the <code>Ref:</code> / relation.</td>
+</tr>
+<tr>
+<td><code>W101</code></td>
+<td>warning</td>
+<td>tab indentation</td>
+<td>Replace tabs with spaces.</td>
+</tr>
+<tr>
+<td><code>W102</code></td>
+<td>warning</td>
+<td>unknown key (kept)</td>
+<td>Remove or rename the key; unknown keys are kept but unused.</td>
+</tr>
+<tr>
+<td><code>W104</code></td>
+<td>warning</td>
+<td>actor with no use cases</td>
+<td>Link the actor to a use case or remove it.</td>
+</tr>
+<tr>
+<td><code>W105</code></td>
+<td>warning</td>
+<td>unknown attribute (ignored)</td>
+<td>Remove the attribute or use one from the attribute tables.</td>
+</tr>
+<tr>
+<td><code>W106</code></td>
+<td>warning</td>
+<td>missing <code>Type</code> / <code>Title</code> header</td>
+<td>Add <code>Type:</code> and <code>Title:</code> header lines at the top.</td>
+</tr>
+<tr>
+<td><code>W107</code></td>
+<td>warning</td>
+<td>unknown <code>Type</code></td>
+<td>Use one of the documented types (Architecture is <code>Type: Graph</code>).</td>
+</tr>
+<tr>
+<td><code>W108</code></td>
+<td>warning</td>
+<td>a use case includes or extends itself (the line is not drawn)</td>
+<td>Remove the self include / extend.</td>
+</tr>
+<tr>
+<td><code>W109</code></td>
+<td>warning</td>
+<td>include cycle (drawn; the cases keep their actor lines)</td>
+<td>Break the include cycle.</td>
+</tr>
+<tr>
+<td><code>W110</code></td>
+<td>warning</td>
+<td>layout adjustment (activities: <code>[x, y]</code> ignored, Direction ignored): a <code>[via: ...]</code> bend pulled inside the system boundary so an actor stays outside, a line that cannot fit without reaching an actor, or an actor pinned inside the boundary</td>
+<td>Remove the <code>[x, y]</code> / <code>[via: …]</code> the layout cannot honor (activities ignore them).</td>
+</tr>
+<tr>
+<td><code>W111</code></td>
+<td>warning</td>
+<td>activity: the branches of a decision meet again without a merge</td>
+<td>Let the branches meet again (the structured <code>if</code> always does).</td>
+</tr>
+<tr>
+<td><code>W112</code></td>
+<td>warning</td>
+<td>activity: a parallel branch reaches the flow after the join without passing it</td>
+<td>Let every parallel branch reach the join.</td>
+</tr>
+<tr>
+<td><code>W113</code></td>
+<td>warning</td>
+<td>activity: a step no flow from the start reaches</td>
+<td>Connect the step to the flow or delete it.</td>
+</tr>
+<tr>
+<td><code>W114</code></td>
+<td>warning</td>
+<td>activity: a lane in <code>Lanes:</code> with no steps</td>
+<td>Remove the empty lane from <code>Lanes:</code> or put a step in it.</td>
+</tr>
+<tr>
+<td><code>W115</code></td>
+<td>warning</td>
+<td>activity: a <code>parallel</code> block with an empty branch (left out)</td>
+<td>Add a step to the empty parallel branch or remove the branch.</td>
+</tr>
+<tr>
+<td><code>W116</code></td>
+<td>warning</td>
+<td>activity: an action with more than one incoming or outgoing flow</td>
+<td>Use a decision or merge instead of several <code>a -&gt; b</code> flows on one action.</td>
+</tr>
+<tr>
+<td><code>W117</code></td>
+<td>warning</td>
+<td>activity: the layout did not converge; the result may overlap</td>
+<td>Simplify the activity (fewer crossing <code>goto</code>s); the result may overlap.</td>
+</tr>
+<tr>
+<td><code>W118</code></td>
+<td>warning</td>
+<td>data model: a reference that is not <code>a.attr &lt; b.attr</code>, or an attribute the reference names but the entity does not have</td>
+<td>Write references as <code>a.attr &lt; b.attr</code> with attributes the entities have; per-segment <code>via</code> goes in <code>Refs</code>.</td>
+</tr>
+<tr>
+<td><code>W119</code></td>
+<td>warning</td>
+<td>data model: a relationship from an entity to itself (not drawn)</td>
+<td>Self relationships are not drawn in CDM/PDM; model them with a link entity.</td>
+</tr>
+<tr>
+<td><code>W120</code></td>
+<td>warning</td>
+<td><code>Numbering:</code> on and fewer main use cases than <code>Min Use Cases:</code> (default 6)</td>
+<td>Add main use cases or lower <code>Min Use Cases:</code>.</td>
+</tr>
+<tr>
+<td><code>W121</code></td>
+<td>warning</td>
+<td>two use cases have the same code</td>
+<td>Give each use case a unique <code>[code: …]</code>.</td>
+</tr>
+<tr>
+<td><code>W122</code></td>
+<td>warning</td>
+<td><code>Alternative N</code> / <code>Alur Alternatif N.M</code>, or a <code>goto N</code> inside it, names a main flow step that does not exist</td>
+<td>Number the alternative after an existing main flow step.</td>
+</tr>
+<tr>
+<td><code>W123</code></td>
+<td>warning</td>
+<td>a <code>[code: ...]</code> that does not follow the <code>Numbering:</code> format (<code>UC-01</code> under <code>Numbering: UC</code>)</td>
+<td>Follow the <code>Numbering:</code> format, e.g. <code>UC-01</code> under <code>Numbering: UC-</code>.</td>
+</tr>
+<tr>
+<td><code>W124</code></td>
+<td>warning</td>
+<td>ERD: a relation that joins fewer than two entities</td>
+<td>Make the relation name at least two entities (the same one twice for a self relation); no chains inside relations.</td>
+</tr>
+<tr>
+<td><code>W125</code></td>
+<td>warning</td>
+<td>ERD: an entity without a key attribute (<code>*</code>)</td>
+<td>Mark a key attribute with <code>*</code>.</td>
+</tr>
+<tr>
+<td><code>W126</code></td>
+<td>warning</td>
+<td>a targetless <code>-&gt; [..]</code> clause or a trailing <code>-&gt;</code> inside an edge chain (ignored; <code>fmt</code> drops a bare trailing <code>-&gt;</code>)</td>
+<td>Remove the targetless <code>-&gt; [..]</code> or trailing <code>-&gt;</code> from the chain (<code>ddr fmt</code> drops a bare trailing <code>-&gt;</code>).</td>
+</tr>
+<tr>
+<td><code>W127</code></td>
+<td>warning</td>
+<td><code>goto x -&gt; y</code>: a goto jumps to one target, the <code>-&gt;</code> part is ignored</td>
+<td>Write <code>goto x</code> alone; add a separate edge if you need one.</td>
+</tr>
+<tr>
+<td><code>W128</code></td>
+<td>warning</td>
+<td>flowchart/graph: a later <code>End</code> with a different label joins the one End; its label is not drawn</td>
+<td>Write one <code>End</code> (or give every <code>End</code> the same label); all paths join the diagram&#39;s single End.</td>
+</tr>
+<tr>
+<td><code>W129</code></td>
+<td>warning</td>
+<td>unknown <code>Lang:</code> value (not <code>en</code> or <code>id</code>, any case); falls back to English (<code>en</code>)</td>
+<td>Use <code>Lang: en</code> or <code>Lang: id</code> (or drop the line for English).</td>
+</tr>
+</tbody></table>
+<h2>HTTP API</h2>
+<p>The cloud server&#39;s REST API. Paths are under <code>/api/v1</code> except <code>/healthz</code>, <code>/ws/…</code> and the browser redirects of Google sign-in. JSON in and out; errors are <code>application/problem+json</code> (<code>{&quot;type&quot;,&quot;title&quot;,&quot;status&quot;,&quot;detail&quot;}</code>). Auth is the <code>ddr_session</code> cookie set by login/register; <code>optional</code> means signed-out callers see public projects only. State-changing requests must come from the same origin. Every route below is read from <code>internal/server/server.go</code>; a test fails if one is missing.</p>
+<p>Diagrams are rendered in the browser (WebAssembly), by <code>ddr render</code> and by the MCP <code>render</code> tool; the server stores text and has no render endpoint yet.</p>
+<h3>Health</h3>
+<p><strong><code>GET /healthz</code></strong> · auth: none<br>Liveness probe (outside /api/v1).</p>
+<p>Response:</p>
+<pre><code>200 {&quot;status&quot;:&quot;ok&quot;,&quot;db&quot;:true,&quot;realtime&quot;:{…}} (503 &quot;degraded&quot; when the database is down)
+</code></pre>
+<p><strong><code>GET /api/v1/health</code></strong> · auth: none<br>Liveness probe.</p>
+<p>Response:</p>
+<pre><code>200 {&quot;status&quot;:&quot;ok&quot;,&quot;db&quot;:true,&quot;realtime&quot;:{…}} (503 &quot;degraded&quot; when the database is down)
+</code></pre>
+<h3>Auth</h3>
+<p><strong><code>POST /api/v1/auth/register</code></strong> · auth: none<br>Create an account and sign in (sets the session cookie). Rate limited.</p>
+<p>Request:</p>
+<pre><code>{&quot;email&quot;:&quot;ana@example.com&quot;,&quot;password&quot;:&quot;correct horse battery&quot;,&quot;name&quot;:&quot;Ana&quot;}
+</code></pre>
+<p>Response:</p>
+<pre><code>201 {&quot;id&quot;:&quot;7b6c…&quot;,&quot;email&quot;:&quot;ana@example.com&quot;,&quot;name&quot;:&quot;Ana&quot;,&quot;avatarUrl&quot;:null,&quot;emailVerified&quot;:true,&quot;createdAt&quot;:&quot;2026-10-22T10:00:00Z&quot;}
+</code></pre>
+<p><strong><code>POST /api/v1/auth/login</code></strong> · auth: none<br>Sign in with email and password (sets the session cookie). Rate limited.</p>
+<p>Request:</p>
+<pre><code>{&quot;email&quot;:&quot;ana@example.com&quot;,&quot;password&quot;:&quot;correct horse battery&quot;}
+</code></pre>
+<p>Response:</p>
+<pre><code>200 {&quot;id&quot;:&quot;7b6c…&quot;,&quot;email&quot;:&quot;ana@example.com&quot;,&quot;name&quot;:&quot;Ana&quot;,&quot;avatarUrl&quot;:null,&quot;emailVerified&quot;:true,&quot;createdAt&quot;:&quot;2026-10-22T10:00:00Z&quot;}
+</code></pre>
+<p><strong><code>POST /api/v1/auth/logout</code></strong> · auth: optional<br>End the current session and clear the cookie.</p>
+<p>Response:</p>
+<pre><code>204 No Content
+</code></pre>
+<p><strong><code>POST /api/v1/auth/verify</code></strong> · auth: none<br>Confirm an email address with the token from the mail.</p>
+<p>Request:</p>
+<pre><code>{&quot;token&quot;:&quot;v_abc…&quot;}
+</code></pre>
+<p>Response:</p>
+<pre><code>200 {&quot;id&quot;:&quot;7b6c…&quot;,&quot;email&quot;:&quot;ana@example.com&quot;,&quot;name&quot;:&quot;Ana&quot;,&quot;avatarUrl&quot;:null,&quot;emailVerified&quot;:true,&quot;createdAt&quot;:&quot;2026-10-22T10:00:00Z&quot;}
+</code></pre>
+<p><strong><code>POST /api/v1/auth/verify/resend</code></strong> · auth: session<br>Send a new verification link (valid 24h, single use). At most one per minute and 10 per day per user; otherwise 429 with <code>Retry-After</code>. Mail goes through Resend (<code>RESEND_API_KEY</code>) or SMTP (<code>SMTP_HOST</code>…), from <code>MAIL_FROM</code>; with neither, the link is written to the server log.</p>
+<p>Response:</p>
+<pre><code>200 {&quot;retryAfter&quot;:60,&quot;remainingToday&quot;:9,&quot;cooldown&quot;:60,&quot;dailyLimit&quot;:10}
+</code></pre>
+<p><strong><code>GET /api/v1/auth/verify/status</code></strong> · auth: session<br>Whether your email is verified, whether verification is required (<code>EMAIL_VERIFICATION_REQUIRED</code>; when false new emails are verified at once and resend answers 409 <code>verification_disabled</code>), and when Resend is allowed again.</p>
+<p>Response:</p>
+<pre><code>200 {&quot;verified&quot;:false,&quot;required&quot;:true,&quot;retryAfter&quot;:42,&quot;remainingToday&quot;:8,&quot;cooldown&quot;:60,&quot;dailyLimit&quot;:10}
+</code></pre>
+<p><strong><code>POST /api/v1/auth/forgot</code></strong> · auth: none<br>Request a password reset mail. Always 204, so it cannot probe for accounts.</p>
+<p>Request:</p>
+<pre><code>{&quot;email&quot;:&quot;ana@example.com&quot;}
+</code></pre>
+<p>Response:</p>
+<pre><code>204 No Content
+</code></pre>
+<p><strong><code>POST /api/v1/auth/reset</code></strong> · auth: none<br>Set a new password with the reset token.</p>
+<p>Request:</p>
+<pre><code>{&quot;token&quot;:&quot;r_abc…&quot;,&quot;password&quot;:&quot;new long password&quot;}
+</code></pre>
+<p>Response:</p>
+<pre><code>204 No Content
+</code></pre>
+<p><strong><code>GET /api/v1/auth/oauth/{provider}</code></strong> · auth: none<br>Generic OAuth route for other providers: always 501. Google sign-in has its own routes (<code>GET /auth/google</code>) once they are on this server.</p>
+<p>Response:</p>
+<pre><code>501 {&quot;type&quot;:&quot;…/not_implemented&quot;,&quot;status&quot;:501,&quot;detail&quot;:&quot;…&quot;}
+</code></pre>
+<p><strong><code>GET /api/v1/auth/oauth/{provider}/callback</code></strong> · auth: none<br>Callback of the generic OAuth route: always 501.</p>
+<p>Response:</p>
+<pre><code>501 {&quot;type&quot;:&quot;…/not_implemented&quot;,&quot;status&quot;:501,&quot;detail&quot;:&quot;…&quot;}
+</code></pre>
+<p><strong><code>GET /api/v1/auth/providers</code></strong> · auth: none<br>Which sign-in methods this server offers.</p>
+<p>Response:</p>
+<pre><code>200 {&quot;password&quot;:true,&quot;google&quot;:true}
+</code></pre>
+<p><strong><code>GET /auth/google</code></strong> · auth: none<br>Start Google sign-in (outside /api/v1). <code>?next=/path</code> is where to land afterwards (same-site paths only).</p>
+<p>Response:</p>
+<pre><code>302 Location: https://accounts.google.com/o/oauth2/v2/auth?…
+</code></pre>
+<p><strong><code>GET /auth/google/callback</code></strong> · auth: none<br>Google redirects here (outside /api/v1); signs in or creates the account, sets the session cookie.</p>
+<p>Request:</p>
+<pre><code>`?code=…&amp;state=…`
+</code></pre>
+<p>Response:</p>
+<pre><code>302 Location: /&lt;next&gt; (or /login?error=&lt;code&gt;)
+</code></pre>
+<h3>Account</h3>
+<p><strong><code>GET /api/v1/me</code></strong> · auth: session<br>The signed-in user.</p>
+<p>Response:</p>
+<pre><code>200 {&quot;id&quot;:&quot;7b6c…&quot;,&quot;email&quot;:&quot;ana@example.com&quot;,&quot;name&quot;:&quot;Ana&quot;,&quot;avatarUrl&quot;:null,&quot;emailVerified&quot;:true,&quot;createdAt&quot;:&quot;2026-10-22T10:00:00Z&quot;}
+</code></pre>
+<p><strong><code>PATCH /api/v1/me</code></strong> · auth: session<br>Change name, email, language or password. A new password, or a new email on an account with a password, needs currentPassword. A new email starts unverified and gets a verification link; email changes share the resend limits (1 per minute, 10 per day) and are capped at 5 per day (429 with <code>Retry-After</code>).</p>
+<p>Request:</p>
+<pre><code>{&quot;name&quot;:&quot;Ana B.&quot;,&quot;email&quot;:&quot;ana@new.example&quot;,&quot;currentPassword&quot;:&quot;…&quot;}
+</code></pre>
+<p>Response:</p>
+<pre><code>200 {&quot;id&quot;:&quot;7b6c…&quot;,&quot;email&quot;:&quot;ana@example.com&quot;,&quot;name&quot;:&quot;Ana&quot;,&quot;avatarUrl&quot;:null,&quot;emailVerified&quot;:true,&quot;createdAt&quot;:&quot;2026-10-22T10:00:00Z&quot;}
+</code></pre>
+<p><strong><code>PUT /api/v1/me/avatar</code></strong> · auth: session<br>Upload an avatar: the raw PNG, JPEG or WebP as the body (max 2 MB). Stored as a 256x256 WebP in S3-compatible storage (<code>S3_ENDPOINT</code>, <code>S3_REGION</code>, <code>S3_BUCKET</code>, <code>S3_ACCESS_KEY_ID</code>, <code>S3_SECRET_ACCESS_KEY</code>, <code>S3_FORCE_PATH_STYLE</code>); the previous one is deleted. 422 for other types, 413 when too large.</p>
+<p>Request:</p>
+<pre><code>&lt;image bytes&gt;
+</code></pre>
+<p>Response:</p>
+<pre><code>200 {&quot;id&quot;:&quot;7b6c…&quot;,&quot;email&quot;:&quot;ana@example.com&quot;,&quot;name&quot;:&quot;Ana&quot;,&quot;avatarUrl&quot;:null,&quot;emailVerified&quot;:true,&quot;createdAt&quot;:&quot;2026-10-22T10:00:00Z&quot;}
+</code></pre>
+<p><strong><code>DELETE /api/v1/me/avatar</code></strong> · auth: session<br>Remove the uploaded avatar (a Google profile picture shows again if there is one).</p>
+<p>Response:</p>
+<pre><code>200 {&quot;id&quot;:&quot;7b6c…&quot;,&quot;email&quot;:&quot;ana@example.com&quot;,&quot;name&quot;:&quot;Ana&quot;,&quot;avatarUrl&quot;:null,&quot;emailVerified&quot;:true,&quot;createdAt&quot;:&quot;2026-10-22T10:00:00Z&quot;}
+</code></pre>
+<p><strong><code>GET /api/v1/users/{id}/avatar</code></strong> · auth: none<br>An uploaded avatar (image/webp). With <code>?v=&lt;etag&gt;</code> it is cached for a year; sends an ETag and answers If-None-Match with 304.</p>
+<p>Response:</p>
+<pre><code>200 image/webp
+</code></pre>
+<p><strong><code>GET /api/v1/me/sessions</code></strong> · auth: session<br>List your sessions.</p>
+<p>Response:</p>
+<pre><code>200 {&quot;items&quot;:[{&quot;id&quot;:&quot;…&quot;,&quot;createdAt&quot;:&quot;…&quot;,&quot;lastSeenAt&quot;:&quot;…&quot;,&quot;expiresAt&quot;:&quot;…&quot;,&quot;userAgent&quot;:&quot;Firefox&quot;,&quot;ip&quot;:&quot;203.0.113.5&quot;,&quot;current&quot;:true}]}
+</code></pre>
+<p><strong><code>DELETE /api/v1/me/sessions/{id}</code></strong> · auth: session<br>Sign out one session.</p>
+<p>Response:</p>
+<pre><code>204 No Content
+</code></pre>
+<p><strong><code>GET /api/v1/me/invites</code></strong> · auth: session<br>Pending invites for your email.</p>
+<p>Response:</p>
+<pre><code>200 {&quot;items&quot;:[{&quot;id&quot;:&quot;c1e2…&quot;,&quot;projectId&quot;:&quot;3f2a…&quot;,&quot;email&quot;:&quot;bo@example.com&quot;,&quot;role&quot;:&quot;editor&quot;,&quot;status&quot;:&quot;pending&quot;,&quot;createdAt&quot;:&quot;…&quot;,&quot;expiresAt&quot;:&quot;…&quot;}],&quot;emailVerified&quot;:true}
+</code></pre>
+<p><strong><code>POST /api/v1/me/invites/{id}/accept</code></strong> · auth: session<br>Accept an invite addressed to you.</p>
+<p>Response:</p>
+<pre><code>200 {&quot;projectId&quot;:&quot;3f2a…&quot;,&quot;role&quot;:&quot;editor&quot;}
+</code></pre>
+<p><strong><code>POST /api/v1/me/invites/{id}/decline</code></strong> · auth: session<br>Decline an invite addressed to you.</p>
+<p>Response:</p>
+<pre><code>204 No Content
+</code></pre>
+<p><strong><code>DELETE /api/v1/me</code></strong> · auth: session<br>Delete your account.</p>
+<p>Response:</p>
+<pre><code>204 No Content
+</code></pre>
+<p><strong><code>GET /api/v1/me/identities</code></strong> · auth: session<br>Linked sign-in identities (e.g. Google).</p>
+<p>Response:</p>
+<pre><code>200 {&quot;items&quot;:[{&quot;provider&quot;:&quot;google&quot;,&quot;email&quot;:&quot;ana@example.com&quot;}]}
+</code></pre>
+<p><strong><code>DELETE /api/v1/me/identities/{provider}</code></strong> · auth: session<br>Unlink an identity.</p>
+<p>Response:</p>
+<pre><code>204 No Content
+</code></pre>
+<h3>Projects</h3>
+<p><strong><code>GET /api/v1/projects</code></strong> · auth: optional<br>List projects. <code>?filter=</code> (<code>all</code> default; <code>public</code> lists public projects signed out), <code>?limit=</code>, <code>?offset=</code>.</p>
+<p>Response:</p>
+<pre><code>200 {&quot;items&quot;:[{&quot;id&quot;:&quot;3f2a…&quot;,&quot;name&quot;:&quot;Online Store&quot;,&quot;slug&quot;:&quot;online-store&quot;,&quot;description&quot;:&quot;&quot;,&quot;visibility&quot;:&quot;private&quot;,&quot;template&quot;:false,&quot;ownerId&quot;:&quot;7b6c…&quot;,&quot;ownerName&quot;:&quot;Ana&quot;,&quot;role&quot;:&quot;owner&quot;,&quot;createdAt&quot;:&quot;…&quot;,&quot;updatedAt&quot;:&quot;…&quot;}],&quot;limit&quot;:50,&quot;offset&quot;:0}
+</code></pre>
+<p><strong><code>POST /api/v1/projects</code></strong> · auth: session<br>Create a project.</p>
+<p>Request:</p>
+<pre><code>{&quot;name&quot;:&quot;Online Store&quot;,&quot;description&quot;:&quot;&quot;,&quot;visibility&quot;:&quot;private&quot;}
+</code></pre>
+<p>Response:</p>
+<pre><code>201 {&quot;id&quot;:&quot;3f2a…&quot;,&quot;name&quot;:&quot;Online Store&quot;,&quot;slug&quot;:&quot;online-store&quot;,&quot;description&quot;:&quot;&quot;,&quot;visibility&quot;:&quot;private&quot;,&quot;template&quot;:false,&quot;ownerId&quot;:&quot;7b6c…&quot;,&quot;ownerName&quot;:&quot;Ana&quot;,&quot;role&quot;:&quot;owner&quot;,&quot;createdAt&quot;:&quot;…&quot;,&quot;updatedAt&quot;:&quot;…&quot;}
+</code></pre>
+<p><strong><code>POST /api/v1/projects/import</code></strong> · auth: session<br>Import a .ddrproj.zip (raw application/zip body or multipart field <code>file</code>). <code>?name=</code> overrides the name.</p>
+<p>Request:</p>
+<pre><code>&lt;zip bytes&gt;
+</code></pre>
+<p>Response:</p>
+<pre><code>201 {&quot;id&quot;:&quot;3f2a…&quot;,&quot;name&quot;:&quot;Online Store&quot;,&quot;slug&quot;:&quot;online-store&quot;,&quot;description&quot;:&quot;&quot;,&quot;visibility&quot;:&quot;private&quot;,&quot;template&quot;:false,&quot;ownerId&quot;:&quot;7b6c…&quot;,&quot;ownerName&quot;:&quot;Ana&quot;,&quot;role&quot;:&quot;owner&quot;,&quot;createdAt&quot;:&quot;…&quot;,&quot;updatedAt&quot;:&quot;…&quot;}
+</code></pre>
+<p><strong><code>GET /api/v1/projects/{pid}</code></strong> · auth: optional<br>One project (members, link holders, or public).</p>
+<p>Response:</p>
+<pre><code>200 {&quot;id&quot;:&quot;3f2a…&quot;,&quot;name&quot;:&quot;Online Store&quot;,&quot;slug&quot;:&quot;online-store&quot;,&quot;description&quot;:&quot;&quot;,&quot;visibility&quot;:&quot;private&quot;,&quot;template&quot;:false,&quot;ownerId&quot;:&quot;7b6c…&quot;,&quot;ownerName&quot;:&quot;Ana&quot;,&quot;role&quot;:&quot;owner&quot;,&quot;createdAt&quot;:&quot;…&quot;,&quot;updatedAt&quot;:&quot;…&quot;}
+</code></pre>
+<p><strong><code>PATCH /api/v1/projects/{pid}</code></strong> · auth: session<br>Rename, describe, change visibility or template flag.</p>
+<p>Request:</p>
+<pre><code>{&quot;visibility&quot;:&quot;public&quot;}
+</code></pre>
+<p>Response:</p>
+<pre><code>200 {&quot;id&quot;:&quot;3f2a…&quot;,&quot;name&quot;:&quot;Online Store&quot;,&quot;slug&quot;:&quot;online-store&quot;,&quot;description&quot;:&quot;&quot;,&quot;visibility&quot;:&quot;private&quot;,&quot;template&quot;:false,&quot;ownerId&quot;:&quot;7b6c…&quot;,&quot;ownerName&quot;:&quot;Ana&quot;,&quot;role&quot;:&quot;owner&quot;,&quot;createdAt&quot;:&quot;…&quot;,&quot;updatedAt&quot;:&quot;…&quot;}
+</code></pre>
+<p><strong><code>DELETE /api/v1/projects/{pid}</code></strong> · auth: session<br>Delete a project (owner).</p>
+<p>Response:</p>
+<pre><code>204 No Content
+</code></pre>
+<p><strong><code>POST /api/v1/projects/{pid}/duplicate</code></strong> · auth: session<br>Copy a project you can view into your account.</p>
+<p>Request:</p>
+<pre><code>{&quot;name&quot;:&quot;Online Store copy&quot;}
+</code></pre>
+<p>Response:</p>
+<pre><code>201 {&quot;id&quot;:&quot;3f2a…&quot;,&quot;name&quot;:&quot;Online Store&quot;,&quot;slug&quot;:&quot;online-store&quot;,&quot;description&quot;:&quot;&quot;,&quot;visibility&quot;:&quot;private&quot;,&quot;template&quot;:false,&quot;ownerId&quot;:&quot;7b6c…&quot;,&quot;ownerName&quot;:&quot;Ana&quot;,&quot;role&quot;:&quot;owner&quot;,&quot;createdAt&quot;:&quot;…&quot;,&quot;updatedAt&quot;:&quot;…&quot;}
+</code></pre>
+<p><strong><code>GET /api/v1/projects/{pid}/export.zip</code></strong> · auth: optional<br>Download the project as .ddrproj.zip.</p>
+<p>Response:</p>
+<pre><code>200 application/zip
+</code></pre>
+<p><strong><code>GET /api/v1/p/{slug}</code></strong> · auth: none<br>A public project and its files by slug.</p>
+<p>Response:</p>
+<pre><code>200 {&quot;project&quot;:{&quot;id&quot;:&quot;3f2a…&quot;,&quot;name&quot;:&quot;Online Store&quot;,&quot;slug&quot;:&quot;online-store&quot;,&quot;description&quot;:&quot;&quot;,&quot;visibility&quot;:&quot;private&quot;,&quot;template&quot;:false,&quot;ownerId&quot;:&quot;7b6c…&quot;,&quot;ownerName&quot;:&quot;Ana&quot;,&quot;role&quot;:&quot;owner&quot;,&quot;createdAt&quot;:&quot;…&quot;,&quot;updatedAt&quot;:&quot;…&quot;},&quot;files&quot;:[{&quot;id&quot;:&quot;91d0…&quot;,&quot;seq&quot;:4,&quot;path&quot;:&quot;diagrams/flow.ddr&quot;,&quot;kind&quot;:&quot;ddr&quot;,&quot;version&quot;:1,&quot;etag&quot;:&quot;\&quot;v1\&quot;&quot;,&quot;size&quot;:64,&quot;createdAt&quot;:&quot;…&quot;,&quot;updatedAt&quot;:&quot;…&quot;}]}
+</code></pre>
+<h3>Files</h3>
+<p><strong><code>GET /api/v1/projects/{pid}/files</code></strong> · auth: optional<br>List files.</p>
+<p>Response:</p>
+<pre><code>200 {&quot;items&quot;:[{&quot;id&quot;:&quot;91d0…&quot;,&quot;seq&quot;:4,&quot;path&quot;:&quot;diagrams/flow.ddr&quot;,&quot;kind&quot;:&quot;ddr&quot;,&quot;version&quot;:1,&quot;etag&quot;:&quot;\&quot;v1\&quot;&quot;,&quot;size&quot;:64,&quot;createdAt&quot;:&quot;…&quot;,&quot;updatedAt&quot;:&quot;…&quot;}]}
+</code></pre>
+<p><strong><code>POST /api/v1/projects/{pid}/files</code></strong> · auth: session<br>Create a file (<code>kind</code> ddr or tdr, inferred from the path).</p>
+<p>Request:</p>
+<pre><code>{&quot;path&quot;:&quot;diagrams/flow.ddr&quot;,&quot;content&quot;:&quot;Type: Flowchart\nTitle: Flow\n&quot;}
+</code></pre>
+<p>Response:</p>
+<pre><code>201 {&quot;id&quot;:&quot;91d0…&quot;,&quot;seq&quot;:4,&quot;path&quot;:&quot;diagrams/flow.ddr&quot;,&quot;kind&quot;:&quot;ddr&quot;,&quot;version&quot;:1,&quot;etag&quot;:&quot;\&quot;v1\&quot;&quot;,&quot;size&quot;:64,&quot;createdAt&quot;:&quot;…&quot;,&quot;updatedAt&quot;:&quot;…&quot;}
+</code></pre>
+<p><strong><code>GET /api/v1/projects/{pid}/files/{fid}</code></strong> · auth: optional<br>File metadata. Sends an ETag.</p>
+<p>Response:</p>
+<pre><code>200 {&quot;id&quot;:&quot;91d0…&quot;,&quot;seq&quot;:4,&quot;path&quot;:&quot;diagrams/flow.ddr&quot;,&quot;kind&quot;:&quot;ddr&quot;,&quot;version&quot;:1,&quot;etag&quot;:&quot;\&quot;v1\&quot;&quot;,&quot;size&quot;:64,&quot;createdAt&quot;:&quot;…&quot;,&quot;updatedAt&quot;:&quot;…&quot;}
+</code></pre>
+<p><strong><code>PATCH /api/v1/projects/{pid}/files/{fid}</code></strong> · auth: session<br>Rename or replace content. Send <code>If-Match</code> or <code>version</code>; a stale version is 412.</p>
+<p>Request:</p>
+<pre><code>{&quot;path&quot;:&quot;diagrams/checkout.ddr&quot;,&quot;version&quot;:1}
+</code></pre>
+<p>Response:</p>
+<pre><code>200 {&quot;id&quot;:&quot;91d0…&quot;,&quot;seq&quot;:4,&quot;path&quot;:&quot;diagrams/flow.ddr&quot;,&quot;kind&quot;:&quot;ddr&quot;,&quot;version&quot;:1,&quot;etag&quot;:&quot;\&quot;v1\&quot;&quot;,&quot;size&quot;:64,&quot;createdAt&quot;:&quot;…&quot;,&quot;updatedAt&quot;:&quot;…&quot;}
+</code></pre>
+<p><strong><code>DELETE /api/v1/projects/{pid}/files/{fid}</code></strong> · auth: session<br>Delete a file.</p>
+<p>Response:</p>
+<pre><code>204 No Content
+</code></pre>
+<p><strong><code>GET /api/v1/projects/{pid}/files/{fid}/text</code></strong> · auth: optional<br>The file text (text/plain, ETag; If-None-Match gives 304).</p>
+<p>Response:</p>
+<pre><code>200 text/plain
+Type: Flowchart
+Title: Flow
+</code></pre>
+<p><strong><code>PUT /api/v1/projects/{pid}/files/{fid}/text</code></strong> · auth: session<br>Replace the text (text/plain body). <code>If-Match: &quot;v1&quot;</code>; <code>?reset=true</code> drops the live Yjs state.</p>
+<p>Request:</p>
+<pre><code>Type: Flowchart
+Title: Flow
+</code></pre>
+<p>Response:</p>
+<pre><code>200 {&quot;id&quot;:&quot;91d0…&quot;,&quot;seq&quot;:4,&quot;path&quot;:&quot;diagrams/flow.ddr&quot;,&quot;kind&quot;:&quot;ddr&quot;,&quot;version&quot;:1,&quot;etag&quot;:&quot;\&quot;v1\&quot;&quot;,&quot;size&quot;:64,&quot;createdAt&quot;:&quot;…&quot;,&quot;updatedAt&quot;:&quot;…&quot;}
+</code></pre>
+<h3>Sharing</h3>
+<p><strong><code>GET /api/v1/projects/{pid}/members</code></strong> · auth: session<br>List members.</p>
+<p>Response:</p>
+<pre><code>200 {&quot;items&quot;:[{&quot;userId&quot;:&quot;…&quot;,&quot;email&quot;:&quot;bo@example.com&quot;,&quot;name&quot;:&quot;Bo&quot;,&quot;avatarUrl&quot;:null,&quot;role&quot;:&quot;editor&quot;,&quot;addedAt&quot;:&quot;…&quot;}]}
+</code></pre>
+<p><strong><code>POST /api/v1/projects/{pid}/members</code></strong> · auth: session<br>Invite by email (same as POST invites).</p>
+<p>Request:</p>
+<pre><code>{&quot;email&quot;:&quot;bo@example.com&quot;,&quot;role&quot;:&quot;editor&quot;}
+</code></pre>
+<p>Response:</p>
+<pre><code>201 {&quot;id&quot;:&quot;c1e2…&quot;,&quot;projectId&quot;:&quot;3f2a…&quot;,&quot;email&quot;:&quot;bo@example.com&quot;,&quot;role&quot;:&quot;editor&quot;,&quot;status&quot;:&quot;pending&quot;,&quot;createdAt&quot;:&quot;…&quot;,&quot;expiresAt&quot;:&quot;…&quot;}
+</code></pre>
+<p><strong><code>PATCH /api/v1/projects/{pid}/members/{uid}</code></strong> · auth: session<br>Change a role; <code>owner</code> transfers ownership.</p>
+<p>Request:</p>
+<pre><code>{&quot;role&quot;:&quot;viewer&quot;}
+</code></pre>
+<p>Response:</p>
+<pre><code>200 {&quot;userId&quot;:&quot;…&quot;,&quot;role&quot;:&quot;viewer&quot;}
+</code></pre>
+<p><strong><code>DELETE /api/v1/projects/{pid}/members/{uid}</code></strong> · auth: session<br>Remove a member (or leave).</p>
+<p>Response:</p>
+<pre><code>204 No Content
+</code></pre>
+<p><strong><code>GET /api/v1/projects/{pid}/invites</code></strong> · auth: session<br>List invites.</p>
+<p>Response:</p>
+<pre><code>200 {&quot;items&quot;:[{&quot;id&quot;:&quot;c1e2…&quot;,&quot;projectId&quot;:&quot;3f2a…&quot;,&quot;email&quot;:&quot;bo@example.com&quot;,&quot;role&quot;:&quot;editor&quot;,&quot;status&quot;:&quot;pending&quot;,&quot;createdAt&quot;:&quot;…&quot;,&quot;expiresAt&quot;:&quot;…&quot;}]}
+</code></pre>
+<p><strong><code>POST /api/v1/projects/{pid}/invites</code></strong> · auth: session<br>Invite by email.</p>
+<p>Request:</p>
+<pre><code>{&quot;email&quot;:&quot;bo@example.com&quot;,&quot;role&quot;:&quot;editor&quot;}
+</code></pre>
+<p>Response:</p>
+<pre><code>201 {&quot;id&quot;:&quot;c1e2…&quot;,&quot;projectId&quot;:&quot;3f2a…&quot;,&quot;email&quot;:&quot;bo@example.com&quot;,&quot;role&quot;:&quot;editor&quot;,&quot;status&quot;:&quot;pending&quot;,&quot;createdAt&quot;:&quot;…&quot;,&quot;expiresAt&quot;:&quot;…&quot;}
+</code></pre>
+<p><strong><code>DELETE /api/v1/invites/{id}</code></strong> · auth: session<br>Revoke an invite.</p>
+<p>Response:</p>
+<pre><code>204 No Content
+</code></pre>
+<p><strong><code>POST /api/v1/invites/{id}/resend</code></strong> · auth: session<br>Resend an invite mail.</p>
+<p>Response:</p>
+<pre><code>200 {&quot;id&quot;:&quot;c1e2…&quot;,&quot;projectId&quot;:&quot;3f2a…&quot;,&quot;email&quot;:&quot;bo@example.com&quot;,&quot;role&quot;:&quot;editor&quot;,&quot;status&quot;:&quot;pending&quot;,&quot;createdAt&quot;:&quot;…&quot;,&quot;expiresAt&quot;:&quot;…&quot;}
+</code></pre>
+<p><strong><code>GET /api/v1/invites/lookup</code></strong> · auth: none<br>Describe an invite by <code>?token=</code>.</p>
+<p>Response:</p>
+<pre><code>200 {&quot;projectName&quot;:&quot;Online Store&quot;,&quot;inviterName&quot;:&quot;Ana&quot;,&quot;email&quot;:&quot;bo@example.com&quot;,&quot;role&quot;:&quot;editor&quot;,&quot;status&quot;:&quot;pending&quot;}
+</code></pre>
+<p><strong><code>GET /api/v1/invites/{token}</code></strong> · auth: none<br>Same as lookup, token in the path.</p>
+<p>Response:</p>
+<pre><code>200 {&quot;projectName&quot;:&quot;Online Store&quot;,&quot;inviterName&quot;:&quot;Ana&quot;,&quot;email&quot;:&quot;bo@example.com&quot;,&quot;role&quot;:&quot;editor&quot;,&quot;status&quot;:&quot;pending&quot;}
+</code></pre>
+<p><strong><code>POST /api/v1/invites/accept</code></strong> · auth: session<br>Accept an invite by token.</p>
+<p>Request:</p>
+<pre><code>{&quot;token&quot;:&quot;i_abc…&quot;}
+</code></pre>
+<p>Response:</p>
+<pre><code>200 {&quot;projectId&quot;:&quot;3f2a…&quot;,&quot;role&quot;:&quot;editor&quot;}
+</code></pre>
+<p><strong><code>POST /api/v1/invites/decline</code></strong> · auth: none<br>Decline an invite by token.</p>
+<p>Request:</p>
+<pre><code>{&quot;token&quot;:&quot;i_abc…&quot;}
+</code></pre>
+<p>Response:</p>
+<pre><code>204 No Content
+</code></pre>
+<p><strong><code>GET /api/v1/projects/{pid}/links</code></strong> · auth: session<br>List share links.</p>
+<p>Response:</p>
+<pre><code>200 {&quot;items&quot;:[{&quot;id&quot;:&quot;5aa1…&quot;,&quot;projectId&quot;:&quot;3f2a…&quot;,&quot;role&quot;:&quot;viewer&quot;,&quot;token&quot;:&quot;s_9x…&quot;,&quot;url&quot;:&quot;https://example.com/s/s_9x…&quot;,&quot;createdAt&quot;:&quot;…&quot;,&quot;expiresAt&quot;:null}]}
+</code></pre>
+<p><strong><code>POST /api/v1/projects/{pid}/links</code></strong> · auth: session<br>Create a share link. Editor links need <code>confirm: true</code>.</p>
+<p>Request:</p>
+<pre><code>{&quot;role&quot;:&quot;viewer&quot;,&quot;expiresInHours&quot;:72}
+</code></pre>
+<p>Response:</p>
+<pre><code>201 {&quot;id&quot;:&quot;5aa1…&quot;,&quot;projectId&quot;:&quot;3f2a…&quot;,&quot;role&quot;:&quot;viewer&quot;,&quot;token&quot;:&quot;s_9x…&quot;,&quot;url&quot;:&quot;https://example.com/s/s_9x…&quot;,&quot;createdAt&quot;:&quot;…&quot;,&quot;expiresAt&quot;:null}
+</code></pre>
+<p><strong><code>DELETE /api/v1/projects/{pid}/links/{lid}</code></strong> · auth: session<br>Revoke a link.</p>
+<p>Response:</p>
+<pre><code>204 No Content
+</code></pre>
+<p><strong><code>DELETE /api/v1/projects/{pid}/links</code></strong> · auth: session<br>Revoke a link given as <code>?id=</code>.</p>
+<p>Response:</p>
+<pre><code>204 No Content
+</code></pre>
+<p><strong><code>GET /api/v1/links/lookup</code></strong> · auth: none<br>Describe a share link by <code>?token=</code>.</p>
+<p>Response:</p>
+<pre><code>200 {&quot;projectId&quot;:&quot;3f2a…&quot;,&quot;projectName&quot;:&quot;Online Store&quot;,&quot;role&quot;:&quot;viewer&quot;,&quot;expiresAt&quot;:null}
+</code></pre>
+<p><strong><code>POST /api/v1/links/accept</code></strong> · auth: session<br>Join a project through a share link.</p>
+<p>Request:</p>
+<pre><code>{&quot;token&quot;:&quot;s_9x…&quot;}
+</code></pre>
+<p>Response:</p>
+<pre><code>200 {&quot;projectId&quot;:&quot;3f2a…&quot;,&quot;role&quot;:&quot;viewer&quot;}
+</code></pre>
+<p><strong><code>GET /api/v1/projects/{pid}/access-requests</code></strong> · auth: session<br>List access requests (managers).</p>
+<p>Response:</p>
+<pre><code>200 {&quot;items&quot;:[{&quot;id&quot;:&quot;e4f5…&quot;,&quot;projectId&quot;:&quot;3f2a…&quot;,&quot;userId&quot;:&quot;8c9d…&quot;,&quot;message&quot;:&quot;May I view this?&quot;,&quot;status&quot;:&quot;pending&quot;,&quot;createdAt&quot;:&quot;…&quot;}]}
+</code></pre>
+<p><strong><code>POST /api/v1/projects/{pid}/access-requests</code></strong> · auth: session<br>Ask the owner for access.</p>
+<p>Request:</p>
+<pre><code>{&quot;message&quot;:&quot;May I view this?&quot;}
+</code></pre>
+<p>Response:</p>
+<pre><code>201 {&quot;id&quot;:&quot;e4f5…&quot;,&quot;projectId&quot;:&quot;3f2a…&quot;,&quot;userId&quot;:&quot;8c9d…&quot;,&quot;message&quot;:&quot;May I view this?&quot;,&quot;status&quot;:&quot;pending&quot;,&quot;createdAt&quot;:&quot;…&quot;}
+</code></pre>
+<p><strong><code>PATCH /api/v1/access-requests/{id}</code></strong> · auth: session<br>Approve or deny a request.</p>
+<p>Request:</p>
+<pre><code>{&quot;status&quot;:&quot;approved&quot;,&quot;role&quot;:&quot;viewer&quot;}
+</code></pre>
+<p>Response:</p>
+<pre><code>200 {&quot;id&quot;:&quot;e4f5…&quot;,&quot;projectId&quot;:&quot;3f2a…&quot;,&quot;userId&quot;:&quot;8c9d…&quot;,&quot;message&quot;:&quot;May I view this?&quot;,&quot;status&quot;:&quot;pending&quot;,&quot;createdAt&quot;:&quot;…&quot;}
+</code></pre>
+<h3>Planned</h3>
+<p><strong><code>POST /api/v1/projects/{pid}/assets</code></strong> · auth: session<br>Upload an asset (planned).</p>
+<p>Response:</p>
+<pre><code>501 {&quot;type&quot;:&quot;…/not_implemented&quot;,&quot;title&quot;:&quot;Not Implemented&quot;,&quot;status&quot;:501,&quot;detail&quot;:&quot;not available in v0.0.1&quot;}
+</code></pre>
+<p><strong><code>GET /api/v1/assets/{aid}</code></strong> · auth: optional<br>Read an asset (planned).</p>
+<p>Response:</p>
+<pre><code>501 {&quot;type&quot;:&quot;…/not_implemented&quot;,&quot;title&quot;:&quot;Not Implemented&quot;,&quot;status&quot;:501,&quot;detail&quot;:&quot;not available in v0.0.1&quot;}
+</code></pre>
+<p><strong><code>GET /api/v1/projects/{pid}/versions</code></strong> · auth: session<br>Version history (planned).</p>
+<p>Response:</p>
+<pre><code>501 {&quot;type&quot;:&quot;…/not_implemented&quot;,&quot;title&quot;:&quot;Not Implemented&quot;,&quot;status&quot;:501,&quot;detail&quot;:&quot;not available in v0.0.1&quot;}
+</code></pre>
+<p><strong><code>POST /api/v1/projects/{pid}/versions</code></strong> · auth: session<br>Save a version (planned).</p>
+<p>Response:</p>
+<pre><code>501 {&quot;type&quot;:&quot;…/not_implemented&quot;,&quot;title&quot;:&quot;Not Implemented&quot;,&quot;status&quot;:501,&quot;detail&quot;:&quot;not available in v0.0.1&quot;}
+</code></pre>
+<p><strong><code>POST /api/v1/projects/{pid}/versions/{vid}/restore</code></strong> · auth: session<br>Restore a version (planned).</p>
+<p>Response:</p>
+<pre><code>501 {&quot;type&quot;:&quot;…/not_implemented&quot;,&quot;title&quot;:&quot;Not Implemented&quot;,&quot;status&quot;:501,&quot;detail&quot;:&quot;not available in v0.0.1&quot;}
+</code></pre>
+<p><strong><code>GET /api/v1/files/{fid}/threads</code></strong> · auth: session<br>Comment threads (planned).</p>
+<p>Response:</p>
+<pre><code>501 {&quot;type&quot;:&quot;…/not_implemented&quot;,&quot;title&quot;:&quot;Not Implemented&quot;,&quot;status&quot;:501,&quot;detail&quot;:&quot;not available in v0.0.1&quot;}
+</code></pre>
+<p><strong><code>POST /api/v1/files/{fid}/threads</code></strong> · auth: session<br>Start a thread (planned).</p>
+<p>Response:</p>
+<pre><code>501 {&quot;type&quot;:&quot;…/not_implemented&quot;,&quot;title&quot;:&quot;Not Implemented&quot;,&quot;status&quot;:501,&quot;detail&quot;:&quot;not available in v0.0.1&quot;}
+</code></pre>
+<p><strong><code>POST /api/v1/threads/{tid}/comments</code></strong> · auth: session<br>Reply (planned).</p>
+<p>Response:</p>
+<pre><code>501 {&quot;type&quot;:&quot;…/not_implemented&quot;,&quot;title&quot;:&quot;Not Implemented&quot;,&quot;status&quot;:501,&quot;detail&quot;:&quot;not available in v0.0.1&quot;}
+</code></pre>
+<p><strong><code>PATCH /api/v1/threads/{tid}</code></strong> · auth: session<br>Resolve a thread (planned).</p>
+<p>Response:</p>
+<pre><code>501 {&quot;type&quot;:&quot;…/not_implemented&quot;,&quot;title&quot;:&quot;Not Implemented&quot;,&quot;status&quot;:501,&quot;detail&quot;:&quot;not available in v0.0.1&quot;}
+</code></pre>
+<p><strong><code>POST /api/v1/projects/{pid}/export</code></strong> · auth: session<br>Server-side render/export job (planned). Today rendering runs in the browser (WebAssembly), the <code>ddr render</code> CLI and the <code>render</code> MCP tool.</p>
+<p>Response:</p>
+<pre><code>501 {&quot;type&quot;:&quot;…/not_implemented&quot;,&quot;title&quot;:&quot;Not Implemented&quot;,&quot;status&quot;:501,&quot;detail&quot;:&quot;not available in v0.0.1&quot;}
+</code></pre>
+<p><strong><code>GET /api/v1/exports/{id}</code></strong> · auth: session<br>Export job status (planned).</p>
+<p>Response:</p>
+<pre><code>501 {&quot;type&quot;:&quot;…/not_implemented&quot;,&quot;title&quot;:&quot;Not Implemented&quot;,&quot;status&quot;:501,&quot;detail&quot;:&quot;not available in v0.0.1&quot;}
+</code></pre>
+<p><strong><code>POST /api/v1/assist</code></strong> · auth: session<br>AI assist (planned).</p>
+<p>Response:</p>
+<pre><code>501 {&quot;type&quot;:&quot;…/not_implemented&quot;,&quot;title&quot;:&quot;Not Implemented&quot;,&quot;status&quot;:501,&quot;detail&quot;:&quot;not available in v0.0.1&quot;}
+</code></pre>
+<h3>Realtime</h3>
+<p><strong><code>GET /ws/projects/{pid}</code></strong> · auth: session<br>WebSocket for live editing (outside /api/v1). Binary frames <code>kind u8 | docRef uvarint | payload</code>: 0x01 subscribe to file (docRef = file seq), 0x02 unsubscribe, 0x10 y-protocols sync, 0x11 awareness, 0x12 checkpoint, 0x13 seq ack, 0x20 file tree (JSON), 0x30 presence (JSON), 0x40 events (JSON), 0x7E error, 0x7F ping.</p>
+<p>Request:</p>
+<pre><code>GET with `Upgrade: websocket` and the session cookie
+</code></pre>
+<p>Response:</p>
+<pre><code>101 Switching Protocols
+</code></pre>
+<h2>Flowchart</h2>
+<!-- type:flowchart -->
+<p>Classic flowchart (ISO 5807): terminators, process boxes, decision diamonds, input/output parallelograms.</p>
+<ul>
+<li><strong>Header:</strong> <code>Type: Flowchart</code></li>
+<li><strong>Accepted <code>Type:</code> values</strong> (case-insensitive): <code>flowchart</code>, <code>flow</code></li>
+<li><strong>File:</strong> <code>.ddr</code>  </li>
+<li><strong>Views:</strong> <code>flow</code></li>
+</ul>
+<p>Grammar:</p>
+<pre><code class="language-ebnf">file      = header blank &quot;Flow&quot; &quot;{&quot; { stmt } &quot;}&quot; ;
+stmt      = step | start | end | if | loop | goto | edge ;
+start     = &quot;Start&quot; [ label ] ;
+end       = &quot;End&quot; [ label ] ;
+step      = [ id &quot;:&quot; ] label { attrs } [ &quot;-&gt;&quot; ( attrs | target [ &quot;:&quot; label ] { attrs } ) ] ;
+if        = &quot;if&quot; cond [ &quot;-&gt;&quot; attrs [ &quot;-&gt;&quot; attrs ] ] block { &quot;elif&quot; cond block } [ &quot;else&quot; block ] ;
+loop      = &quot;loop&quot; [ cond ] block ;
+goto      = &quot;goto&quot; id [ attrs ] ;
+edge      = id &quot;-&gt;&quot; id [ &quot;:&quot; label ] { attrs } { &quot;-&gt;&quot; id [ &quot;:&quot; label ] { attrs } } ;
+block     = &quot;{&quot; { stmt } &quot;}&quot; ;
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>required</th>
+<th>values</th>
+<th>default</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Flow</code></td>
+<td><strong>yes</strong></td>
+<td>block</td>
+<td>-</td>
+<td>The one flow of the chart.</td>
+</tr>
+</tbody></table>
+<ul>
+<li>Write one <code>Flow { }</code> block. Statements end at a newline or <code>;</code>.</li>
+<li><code>Start</code> and <code>End</code> are rounded terminators. Write <code>End</code> once, as the last statement: every branch that finishes flows into it (a later <code>End</code> with a different label gives W128 once that check lands).</li>
+<li><code>if cond? { … } else { … }</code> draws a diamond with <code>Yes</code> / <code>No</code> exits. Rename them with clauses: <code>if ok? -&gt; [label: Accepted] -&gt; [label: Rejected] { … }</code>.</li>
+<li><code>loop cond? { … }</code> repeats the block while the condition holds; <code>loop { … }</code> asks <code>Repeat?</code>.</li>
+<li><code>goto id</code> jumps to the step with that id (<code>id: Label</code> declares one).</li>
+<li>A step whose first word is <code>Input</code>, <code>Output</code>, <code>Read</code>, <code>Print</code>, <code>Display</code>, <code>Show</code>, <code>Enter</code> or <code>Prompt</code> is drawn as a parallelogram; <code>[shape: rect]</code> turns that off for one step.</li>
+<li><code>@Name</code> in a step links it to an actor (inside use cases).</li>
+</ul>
+<p>Example (<code>docs/examples/flowchart.ddr</code>):</p>
+<pre><code class="language-ddr">Type: Flowchart
+Title: Password reset
+Direction: TB
+
+# One Flow block. Steps run top to bottom; `if`, `loop` and `goto` branch.
+Flow {
+  Start;
+  Enter email address;
+  if Account exists? {
+    Send reset link;
+    open: Open link from email;
+    if Link still valid? {
+      Choose new password;
+    } else {
+      Show expired message;
+      goto open;
+    }
+  } else {
+    Show generic confirmation;
+  }
+  End;
+}
+</code></pre>
+<h3>Flowchart: Start/End labels and the one End</h3>
+<pre><code class="language-ebnf">start = &quot;Start&quot; [ &quot;:&quot; ] [ label ] ;
+end   = &quot;End&quot; [ &quot;:&quot; ] [ label ] ;
+</code></pre>
+<ul>
+<li><code>Start: Order received</code> and <code>Start Order received</code> are the same: the label of the start terminator. <code>End: label</code> likewise.</li>
+<li>A flowchart or graph draws <strong>one</strong> End. Every <code>End</code> (an early exit inside an <code>if</code>, the end of an <code>else</code>, the last statement) routes its own arrow into the first End written.</li>
+<li>A later <code>End</code> with a different label still joins that End, but its label is not drawn: W128. Give every <code>End</code> the same label, or none.</li>
+</ul>
+<p>Example (<code>docs/examples/pending/flowchart-start-end-labels.ddr</code>):</p>
+<pre><code class="language-ddr">Type: Flowchart
+Title: Order approval
+
+Flow {
+  Start: Order received;
+  if In stock? {
+    Ship order;
+    End: Order closed;
+  } else {
+    Notify customer;
+    End: Order closed;
+  }
+}
+</code></pre>
+<h2>Graph</h2>
+<!-- type:graph -->
+<p>Free boxes-and-arrows graph: node statements and explicit <code>a -&gt; b</code> edges.</p>
+<ul>
+<li><strong>Header:</strong> <code>Type: Graph</code></li>
+<li><strong>File:</strong> <code>.ddr</code>  </li>
+<li><strong>Views:</strong> <code>graph</code></li>
+</ul>
+<p>Grammar:</p>
+<pre><code class="language-ebnf">file  = header blank ( &quot;Graph&quot; | &quot;Nodes&quot; ) &quot;{&quot; { node | edge } &quot;}&quot; [ &quot;Edges&quot; &quot;{&quot; { edge } &quot;}&quot; ] ;
+node  = [ id &quot;:&quot; ] label { attrs } ;
+edge  = id &quot;-&gt;&quot; id [ &quot;:&quot; label ] { attrs } { &quot;-&gt;&quot; id [ &quot;:&quot; label ] { attrs } } ;
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>required</th>
+<th>values</th>
+<th>default</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Graph</code></td>
+<td><strong>yes</strong></td>
+<td>block (alias <code>Nodes</code>)</td>
+<td>-</td>
+<td>Nodes and edges.</td>
+</tr>
+<tr>
+<td><code>Edges</code></td>
+<td>no</td>
+<td>block</td>
+<td>-</td>
+<td>Extra edges added to the same graph.</td>
+</tr>
+</tbody></table>
+<ul>
+<li>Declare nodes as <code>id: Label [attrs]</code>; edges name ids: <code>api -&gt; db: SQL</code>.</li>
+<li>Edges never create nodes: an unknown id is E203.</li>
+<li>Use <code>shape</code>, <code>color</code> and <code>[style: curve]</code> / <code>[dashed]</code> to style.</li>
+</ul>
+<p>Example (<code>docs/examples/graph.ddr</code>):</p>
+<pre><code class="language-ddr">Type: Graph
+Title: Order service
+Direction: LR
+
+Graph {
+  user: Customer [shape: actor];
+  web: Web app [shape: round];
+  api: Order API;
+  queue: Event queue [shape: pill, color: amber];
+  db: Orders database [shape: cylinder];
+  mail: Email service [shape: round, color: teal];
+  user -&gt; web: browses;
+  web -&gt; api: JSON over HTTPS;
+  api -&gt; db: SQL;
+  api -&gt; queue -&gt; mail: order.created;
+}
+</code></pre>
+<h2>Architecture</h2>
+<!-- type:architecture -->
+<p>Architecture diagrams are written as <code>Type: Graph</code> with shapes (<code>cylinder</code> for stores, <code>actor</code> for people, <code>round</code> for services) and colors per tier.</p>
+<ul>
+<li><strong>Header:</strong> <code>Type: Graph</code></li>
+<li><strong>File:</strong> <code>.ddr</code>  </li>
+<li><strong>Views:</strong> <code>graph</code></li>
+</ul>
+<p>Grammar:</p>
+<pre><code class="language-ebnf">Same as Graph.
+</code></pre>
+<ul>
+<li>There is no separate <code>Type: Architecture</code>; it gives W107. Write <code>Type: Graph</code>.</li>
+<li>Suggested shapes: <code>actor</code> people, <code>round</code> / <code>pill</code> services, <code>cylinder</code> databases and queues, <code>box</code> external systems.</li>
+<li>Use <code>Direction: LR</code> for left-to-right tiers and <code>[dashed]</code> for asynchronous calls.</li>
+</ul>
+<p>Example (<code>docs/examples/architecture.ddr</code>):</p>
+<pre><code class="language-ddr">Type: Graph
+Title: Web platform architecture
+Direction: LR
+
+# Architecture diagrams are Graphs with shapes and colors for each tier.
+Graph {
+  browser: Browser [shape: round];
+  cdn: CDN [shape: pill, color: teal];
+  app: App server;
+  worker: Background worker [color: purple];
+  cache: Cache [shape: cylinder, color: red];
+  db: Database [shape: cylinder];
+  store: File storage [shape: cylinder, color: amber];
+  browser -&gt; cdn: static files;
+  browser -&gt; app: API calls;
+  app -&gt; cache;
+  app -&gt; db: reads and writes;
+  app -&gt; worker: jobs [dashed];
+  worker -&gt; store: uploads;
+}
+</code></pre>
+<h2>Use case</h2>
+<!-- type:usecase -->
+<p>UML use case diagram: actors outside a system boundary, use cases inside, include / extend / generalization.</p>
+<ul>
+<li><strong>Header:</strong> <code>Type: UseCase</code></li>
+<li><strong>Accepted <code>Type:</code> values</strong> (case-insensitive): <code>usecase</code>, <code>use case</code></li>
+<li><strong>File:</strong> <code>.ddr</code>  </li>
+<li><strong>Views:</strong> <code>overview</code>, plus <code>flow: &lt;use case&gt;</code> per use case with a <code>Flow</code></li>
+</ul>
+<p>Grammar:</p>
+<pre><code class="language-ebnf">file      = header blank &quot;Actors:&quot; { actor } &quot;Use Cases:&quot; { case | group } ;
+actor     = &quot;-&quot; name { attrs } [ &quot;-&gt;&quot; name &quot;[head: triangle]&quot; ] ;
+case      = &quot;-&quot; actors &quot;:&quot; name { attrs } [ &quot;-&gt;&quot; actor { attrs } ] { field } ;
+group     = &quot;-&quot; actors [ &quot;:&quot; ] &quot;{&quot; { name { attrs } [ &quot;{&quot; fields &quot;}&quot; ] ( &quot;;&quot; | NL ) } &quot;}&quot; ;
+actors    = name { &quot;,&quot; name } ;
+field     = key &quot;:&quot; text | ( &quot;Flow&quot; | &quot;Main Flow&quot; | &quot;Alternative&quot; [ N ] | &quot;Exceptions&quot; ) &quot;{&quot; { stmt } &quot;}&quot; ;
+key       = &quot;Description&quot; | &quot;Includes&quot; | &quot;Extends&quot; | &quot;Precondition&quot; | &quot;Postcondition&quot; | &quot;Actors&quot; | ... ;
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>required</th>
+<th>values</th>
+<th>default</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Actors</code></td>
+<td><strong>yes</strong></td>
+<td>list</td>
+<td>-</td>
+<td>One actor per <code>- </code> line. Flags: <code>[system]</code>, <code>[external]</code>, <code>[primary]</code>, <code>[secondary]</code>; <code>[side: left|right]</code>.</td>
+</tr>
+<tr>
+<td><code>Use Cases</code></td>
+<td><strong>yes</strong></td>
+<td>list</td>
+<td>-</td>
+<td><code>- Actor, Actor: Use case</code> with indented fields.</td>
+</tr>
+<tr>
+<td><code>Numbering</code></td>
+<td>no</td>
+<td>prefix, e.g. <code>UC</code> or <code>UC-</code></td>
+<td>off</td>
+<td>Gives each main case a code UC01, UC02, … (sub-cases UC03.1).</td>
+</tr>
+<tr>
+<td><code>Show Codes</code></td>
+<td>no</td>
+<td><code>yes</code> <code>no</code></td>
+<td>no</td>
+<td>Print the code above the name.</td>
+</tr>
+<tr>
+<td><code>Min Use Cases</code></td>
+<td>no</td>
+<td>number</td>
+<td>6</td>
+<td>With <code>Numbering:</code>, fewer main cases warns W120.</td>
+</tr>
+</tbody></table>
+<ul>
+<li>Fields of a case (indented under it): <code>Description</code>, <code>Includes</code>, <code>Extends</code>, <code>Precondition</code>, <code>Postcondition</code>, <code>Flow { }</code>, <code>Main Flow { }</code>, <code>Alternative N { }</code>, <code>Exceptions { }</code>.</li>
+<li><code>Includes: A, B</code> draws dashed <code>«include»</code> arrows; <code>Extends: Base</code> draws <code>«extend»</code> toward the base.</li>
+<li>Generalization: <code>- Child -&gt; Parent [head: triangle]</code> under Actors or Use Cases.</li>
+<li>Group cases that share actors: <code>- Customer { Browse; Search }</code>.</li>
+<li><code>[code: UC07]</code> sets a code by hand; <code>[spec: none]</code> leaves a case out of spec tables.</li>
+<li>Specification keys also have Indonesian aliases (<code>Deskripsi</code>, <code>Alur Dasar</code>, <code>Alur Alternatif N</code>, <code>Kebutuhan Spesifik</code>, …) for teams that write specs in Indonesian.</li>
+</ul>
+<p>Example (<code>docs/examples/usecase.ddr</code>):</p>
+<pre><code class="language-ddr">Type: UseCase
+Title: Online Store
+Author: Product Team
+
+Actors:
+- Customer
+- Store Manager
+- Payment Provider [system]
+
+Use Cases:
+- Customer: Browse catalog
+  Description: The customer looks through products by category.
+- Customer: Place order
+  Description: The customer buys the items in the cart.
+  Includes: Pay for order
+- Customer, Payment Provider: Pay for order
+  Description: The order total is charged to the customer.
+- Customer: Track order
+  Extends: Place order
+- Store Manager: Manage products
+  Description: The manager adds, edits and removes products.
+</code></pre>
+<h2>Activity</h2>
+<!-- type:activity -->
+<p>UML activity diagram with swimlanes, decisions, merges, fork/join bars and one implicit start and end.</p>
+<ul>
+<li><strong>Header:</strong> <code>Type: Activity</code></li>
+<li><strong>Accepted <code>Type:</code> values</strong> (case-insensitive): <code>activity</code>, <code>activity diagram</code></li>
+<li><strong>File:</strong> <code>.ddr</code>  </li>
+<li><strong>Views:</strong> <code>activity</code></li>
+</ul>
+<p>Grammar:</p>
+<pre><code class="language-ebnf">file      = header blank ( &quot;Flow&quot; | &quot;Activity&quot; ) &quot;{&quot; { stmt } &quot;}&quot; ;
+stmt      = [ lane &quot;:&quot; ] ( step | if | loop | parallel | goto | &quot;start&quot; | &quot;end&quot; | &quot;stop&quot; | edge ) ;
+step      = [ id &quot;:&quot; ] label { attrs } ;
+if        = &quot;if&quot; cond [ &quot;[yes:&quot; text &quot;,&quot; &quot;no:&quot; text &quot;]&quot; ] block { &quot;elif&quot; cond block } [ &quot;else&quot; block ] ;
+loop      = &quot;loop&quot; [ cond ] block ;
+parallel  = &quot;parallel&quot; block &quot;and&quot; block { &quot;and&quot; block } ;
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>required</th>
+<th>values</th>
+<th>default</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Lanes</code></td>
+<td>no</td>
+<td>comma list</td>
+<td>lanes in order of first use</td>
+<td>Swimlane columns, left to right. A lane named in a step must be listed (E205) when <code>Lanes:</code> is given.</td>
+</tr>
+<tr>
+<td><code>Flow</code></td>
+<td><strong>yes</strong></td>
+<td>block (alias <code>Activity</code>)</td>
+<td>-</td>
+<td>The activity.</td>
+</tr>
+</tbody></table>
+<ul>
+<li><code>Lane: step</code> puts a statement in a lane; a statement without a prefix stays in the previous lane.</li>
+<li>Start and end are implicit: one initial node before the first statement and one activity final after the last. <code>end</code> / <code>stop</code> in a branch routes into that same final.</li>
+<li><code>parallel { … } and { … }</code> draws a fork bar and a join bar.</li>
+<li>Layout is automatic: <code>[x, y]</code> and <code>[via: …]</code> are ignored (W110).</li>
+</ul>
+<p>Example (<code>docs/examples/activity.ddr</code>):</p>
+<pre><code class="language-ddr">Type: Activity
+Title: Support ticket
+Lanes: Customer, Support, System
+
+Flow {
+  Customer: Submit ticket
+  System: Assign ticket number
+  Support: Review ticket
+  if Needs more information? {
+    Support: Ask customer for details
+    Customer: Reply with details
+  } else {
+    Support: Accept ticket
+  }
+  parallel {
+    Support: Resolve issue
+  } and {
+    System: Notify customer of progress
+  }
+  Customer: Confirm resolution
+}
+</code></pre>
+<h3>Language of generated labels (Lang)</h3>
+<pre><code class="language-ebnf">lang = ( &quot;Lang&quot; | &quot;Language&quot; ) &quot;:&quot; ( &quot;en&quot; | &quot;id&quot; ) ;
+</code></pre>
+<ul>
+<li>One header line sets the language of every generated label: activity guards (<code>[Yes]</code> / <code>[No]</code> or <code>[Ya]</code> / <code>[Tidak]</code>, <code>Repeat?</code> / <code>Ulangi?</code>) and use case specification labels and step text.</li>
+<li>Without a <code>Lang:</code> line the language is <strong>English</strong> (<code>en</code>).</li>
+<li>Any other value gives W129 and the default is used.</li>
+<li>Guards you write yourself (<code>[yes: valid, no: invalid]</code>) are never translated.</li>
+</ul>
+<p>Example (<code>docs/examples/pending/activity-lang.ddr</code>):</p>
+<pre><code class="language-ddr">Type: Activity
+Title: Leave request
+Lang: en
+Lanes: Employee, Manager
+
+Flow {
+  Employee: Submit leave request
+  Manager: Review request
+  if Approved? {
+    Manager: Record approval
+  } else {
+    Employee: Revise request
+  }
+}
+</code></pre>
+<h2>Conceptual data model (CDM)</h2>
+<!-- type:cdm -->
+<p>PowerDesigner-style conceptual model: entities, attributes with identifiers <code>&lt;pi&gt;</code> and mandatory <code>&lt;M&gt;</code>, named relationships with crow&#39;s feet.</p>
+<ul>
+<li><strong>Header:</strong> <code>Type: CDM</code></li>
+<li><strong>Accepted <code>Type:</code> values</strong> (case-insensitive): <code>cdm</code>, <code>conceptual</code>, <code>conceptual data model</code></li>
+<li><strong>File:</strong> <code>.ddr</code>  </li>
+<li><strong>Views:</strong> <code>cdm</code></li>
+</ul>
+<p>Grammar:</p>
+<pre><code class="language-ebnf">file      = header blank &quot;Entities:&quot; { entity } { ref } ;
+entity    = &quot;-&quot; name ( &quot;{&quot; attr { ( &quot;;&quot; | NL ) attr } &quot;}&quot; | NL { INDENT attr NL } ) ;
+attr      = name [ &quot;:&quot; type ] { attrs } ;           (* [identifier] [pi] [mandatory] [M] *)
+ref       = &quot;Ref:&quot; end op end [ &quot;:&quot; name ] { attrs } { op end [ &quot;:&quot; name ] } ;
+end       = entity_name [ &quot;.&quot; attr_name ] ;
+op        = &quot;&lt;&quot; | &quot;&gt;&quot; | &quot;-&quot; | &quot;&lt;&gt;&quot; ;
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>required</th>
+<th>values</th>
+<th>default</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Entities</code></td>
+<td><strong>yes</strong></td>
+<td>list</td>
+<td>-</td>
+<td>One entity per <code>- </code> item.</td>
+</tr>
+<tr>
+<td><code>Ref</code></td>
+<td>no</td>
+<td>line (repeatable)</td>
+<td>-</td>
+<td>A relationship. Also as a <code>References:</code> list or a <code>Ref { }</code> block.</td>
+</tr>
+</tbody></table>
+<ul>
+<li><code>&lt;</code> one-to-many, <code>&gt;</code> many-to-one, <code>-</code> one-to-one, <code>&lt;&gt;</code> many-to-many.</li>
+<li><code>[identifier]</code> (or <code>[pi]</code>) marks <code>&lt;pi&gt;</code> and <code>&lt;M&gt;</code>; <code>[mandatory]</code> / <code>[M]</code> marks only <code>&lt;M&gt;</code>.</li>
+<li>SQL-ish types are shown conceptually: <code>varchar(100)</code> → <code>Variable characters (100)</code>, <code>int</code> → <code>Integer</code>, <code>double</code> → <code>Long float</code>.</li>
+<li>Do not repeat foreign keys in a CDM: <code>Ref: Customer &lt; Order</code> is the link.</li>
+<li>Unnamed relationships are labeled <code>Relationship_1</code>, <code>Relationship_2</code>, …</li>
+</ul>
+<p>Example (<code>docs/examples/cdm.ddr</code>):</p>
+<pre><code class="language-ddr">Type: CDM
+Title: Online Store
+
+Entities:
+- Customer {
+    Customer ID: varchar(12) [identifier]
+    Full Name: varchar(80) [mandatory]
+    Email: varchar(120)
+  }
+- Order {
+    Order ID: varchar(12) [identifier]
+    Order Date: date [mandatory]
+    Total: double
+  }
+- Product {
+    Product ID: varchar(12) [identifier]
+    Name: varchar(100) [mandatory]
+    Price: double
+  }
+
+Ref: Customer &lt; Order: places
+Ref: Order &lt;&gt; Product: contains
+</code></pre>
+<h2>Physical data model (PDM)</h2>
+<!-- type:pdm -->
+<p>Physical tables with SQL types and PK/FK columns; references are written between columns.</p>
+<ul>
+<li><strong>Header:</strong> <code>Type: PDM</code></li>
+<li><strong>Accepted <code>Type:</code> values</strong> (case-insensitive): <code>pdm</code>, <code>physical</code>, <code>physical data model</code></li>
+<li><strong>File:</strong> <code>.ddr</code>  </li>
+<li><strong>Views:</strong> <code>pdm</code></li>
+</ul>
+<p>Grammar:</p>
+<pre><code class="language-ebnf">file      = header blank ( &quot;Tables:&quot; | &quot;Entities:&quot; ) { table } { ref } ;
+table     = &quot;-&quot; name ( &quot;{&quot; column { ( &quot;;&quot; | NL ) column } &quot;}&quot; | NL { INDENT column NL } ) ;
+column    = name &quot;:&quot; sqltype { attrs } ;             (* [pk] [fk] [unique] [not null] [null] *)
+ref       = &quot;Ref:&quot; table &quot;.&quot; column op table &quot;.&quot; column [ &quot;:&quot; name ] { attrs } ;
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>required</th>
+<th>values</th>
+<th>default</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Tables</code></td>
+<td><strong>yes</strong></td>
+<td>list (alias <code>Entities</code>)</td>
+<td>-</td>
+<td>One table per <code>- </code> item.</td>
+</tr>
+<tr>
+<td><code>Ref</code></td>
+<td>no</td>
+<td>line (repeatable)</td>
+<td>-</td>
+<td><code>Ref: a.col &lt; b.col</code>. The many side (or the right side of <code>-</code>) is the FK.</td>
+</tr>
+</tbody></table>
+<ul>
+<li>Mark primary keys with <code>[pk]</code>; a column on the many side of a <code>Ref:</code> is shown as <code>FK</code> automatically.</li>
+<li><code>[not null]</code>, <code>[null]</code>, <code>[unique]</code> are accepted and kept.</li>
+<li>Attributes on a ref line go last: <code>Ref: a.id &lt; b.a_id: owns [via: (420,80)]</code>.</li>
+</ul>
+<p>Example (<code>docs/examples/pdm.ddr</code>):</p>
+<pre><code class="language-ddr">Type: PDM
+Title: Online Store
+
+Tables:
+- customers {
+    customer_id: bigint [pk]
+    full_name: varchar(120) [not null]
+    email: varchar(180) [not null]
+  }
+- orders {
+    order_id: bigint [pk]
+    customer_id: bigint [not null]
+    ordered_at: timestamp [not null]
+  }
+- order_items {
+    order_id: bigint [pk]
+    product_id: bigint [pk]
+    quantity: int [not null]
+  }
+- products {
+    product_id: bigint [pk]
+    name: varchar(100) [not null]
+    price: numeric(10,2) [not null]
+  }
+
+Ref: customers.customer_id &lt; orders.customer_id
+Ref: orders.order_id &lt; order_items.order_id
+Ref: products.product_id &lt; order_items.product_id
+</code></pre>
+<h2>Entity relationship (ERD, Chen)</h2>
+<!-- type:erd -->
+<p>Chen notation: entities are rectangles, relations diamonds, attributes ovals; key <code>*</code> (bold, underlined), foreign key <code>**</code>, derived <code>#</code> (dashed), composite <code>name { ... }</code>.</p>
+<ul>
+<li><strong>Header:</strong> <code>Type: ERD</code></li>
+<li><strong>Accepted <code>Type:</code> values</strong> (case-insensitive): <code>erd</code>, <code>er</code>, <code>entity relationship</code>, <code>chen</code></li>
+<li><strong>File:</strong> <code>.ddr</code>  </li>
+<li><strong>Views:</strong> <code>erd</code></li>
+</ul>
+<p>Grammar:</p>
+<pre><code class="language-ebnf">file      = header blank &quot;Entities:&quot; { entity } &quot;Relations:&quot; { relation } ;
+entity    = &quot;-&quot; name &quot;{&quot; attr { &quot;;&quot; attr } &quot;}&quot; ;
+attr      = mark name [ &quot;[x:&quot; n &quot;,&quot; &quot;y:&quot; n &quot;]&quot; ] [ &quot;{&quot; attr { &quot;;&quot; attr } &quot;}&quot; ]
+          | name [ &quot;*&quot; | &quot;**&quot; ] [ &quot;#&quot; ] [ &quot;[x:&quot; n &quot;,&quot; &quot;y:&quot; n &quot;]&quot; ] [ &quot;{&quot; attr { &quot;;&quot; attr } &quot;}&quot; ] ;
+mark      = &quot;*&quot; | &quot;**&quot; ;
+relation  = &quot;-&quot; name &quot;{&quot; member { &quot;;&quot; member } &quot;}&quot; ;
+member    = entity_name [ &quot;:&quot; card ] | attr ;          (* card: 1, M, N, 0..1, ... *)
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>required</th>
+<th>values</th>
+<th>default</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Entities</code></td>
+<td><strong>yes</strong></td>
+<td>list</td>
+<td>-</td>
+<td><code>- Name { Attr *; Attr; Ref ** }</code>.</td>
+</tr>
+<tr>
+<td><code>Relations</code></td>
+<td><strong>yes</strong></td>
+<td>list</td>
+<td>-</td>
+<td><code>- Verb { EntityA: 1; EntityB: N; attribute }</code>.</td>
+</tr>
+</tbody></table>
+<ul>
+<li><code>Name *</code> is a key attribute, drawn bold and underlined with no star; <code>*Name</code> also works.</li>
+<li><code>Name **</code> is a foreign key: accepted and kept, drawn as a plain attribute for now.</li>
+<li><code>Name #</code> is a derived attribute, drawn with a dashed outline. Only a trailing <code> #</code> counts; a line that starts with <code>#</code> is still a comment.</li>
+<li><code>Name { A; B }</code> is a composite attribute: A and B hang off Name, and they may nest again.</li>
+<li>In a relation, a line naming an entity joins it; <code>Entity: card</code> also prints the cardinality.</li>
+<li>Any other line in a relation is an attribute of the relation.</li>
+<li>A relation may join three or more entities; a self relation names the same entity twice.</li>
+<li>Do not write chains (<code>A -&gt; B</code>) inside a relation (W124).</li>
+</ul>
+<p>Example (<code>docs/examples/erd.ddr</code>):</p>
+<pre><code class="language-ddr">Type: ERD
+Title: Online Store
+
+Entities:
+- Customer { Customer ID *; Name; Email }
+- Order { Order ID *; Order Date; Customer ID ** }
+- Product { Product ID *; Name; Price }
+
+Relations:
+- Places { Customer: 1; Order: N }
+- Contains { Order: M; Product: N; Quantity }
+</code></pre>
+<h3>ERD: ternary relationships</h3>
+<p>A relation joins every entity it names, so a ternary (or wider) relationship is one diamond with three member lines:</p>
+<pre><code class="language-ebnf">relation = &quot;-&quot; name &quot;{&quot; member &quot;;&quot; member &quot;;&quot; member { &quot;;&quot; ( member | attr ) } &quot;}&quot; ;
+</code></pre>
+<ul>
+<li>Each entity gets its own line from the diamond, with its cardinality beside the entity.</li>
+<li>Lines that are not entity names (<code>Term</code>) are attributes of the relation.</li>
+<li>A relation naming fewer than two entities gives W124.</li>
+</ul>
+<p>Example (<code>docs/examples/erd-ternary.ddr</code>):</p>
+<pre><code class="language-ddr">Type: ERD
+Title: Course enrollment
+
+Entities:
+- Student { Student ID *; Name }
+- Course { Course ID *; Title }
+- Teacher { Teacher ID *; Name }
+
+Relations:
+- Enrolls { Student: N; Course: M; Teacher: 1; Term }
+</code></pre>
+<h3>ERD: key, derived and composite attributes</h3>
+<p>Attribute marks and nesting:</p>
+<pre><code class="language-ebnf">attr = name [ &quot;*&quot; | &quot;**&quot; ] [ &quot;#&quot; ] [ &quot;{&quot; attr { &quot;;&quot; attr } &quot;}&quot; ] ;
+</code></pre>
+<ul>
+<li><code>User ID *</code>: key, bold and underlined (W125 when an entity has none).</li>
+<li><code>User ID **</code>: foreign key, no mark drawn yet.</li>
+<li><code>Age #</code>: derived, dashed oval.</li>
+<li><code>Address { Country; City }</code>: composite; its children are drawn farther out on the same side, any depth.</li>
+</ul>
+<p>Example (<code>docs/examples/erd-attributes.ddr</code>):</p>
+<pre><code class="language-ddr">Type: ERD
+Title: Users and Orders
+
+# key `*`, foreign key `**`, derived `#`, composite `{ }`
+Entities:
+- User {
+    User ID *
+    Name
+    Age #
+    Address {
+      Country
+      City
+      District
+    }
+  }
+- Order { *Order ID; Order Date; User ID **; Total # }
+
+Relations:
+- Places { User: 1; Order: N }
+</code></pre>
+<h3>ERD: optional cardinality</h3>
+<p>The cardinality after <code>Entity:</code> is optional:</p>
+<pre><code class="language-ebnf">member = entity_name [ &quot;:&quot; card ] ;   (* card: 1 | M | N | 0..1 | 1..N | ... ; free text *)
+</code></pre>
+<ul>
+<li><code>Employee: 0..1</code> prints <code>0..1</code> beside Employee.</li>
+<li><code>Employee</code> alone joins the entity and prints nothing (no default cardinality is assumed).</li>
+</ul>
+<p>Example (<code>docs/examples/erd-optional-card.ddr</code>):</p>
+<pre><code class="language-ddr">Type: ERD
+Title: Employees and parking spots
+
+Entities:
+- Employee { Employee ID *; Name }
+- Parking Spot { Spot ID *; Level }
+- Department { Department ID *; Name }
+
+Relations:
+- Uses { Employee: 0..1; Parking Spot: 0..1 }
+- Works In { Employee; Department }
+</code></pre>
+<h2>Documents (.tdr) and use case specifications</h2>
+<!-- type:tdr -->
+<p>Markdown documents with a header and directives that embed live diagrams and use case specification tables.</p>
+<ul>
+<li><strong>Header:</strong> none (a <code>.tdr</code> file)</li>
+<li><strong>File:</strong> <code>.tdr</code>  </li>
+<li><strong>Views:</strong> page preview</li>
+</ul>
+<p>Grammar:</p>
+<pre><code class="language-ebnf">file      = [ { key &quot;:&quot; value NL } &quot;---&quot; NL ] markdown ;
+directive = &quot;::diagram[&quot; path &quot;]&quot; [ &quot;{&quot; &quot;view=&quot; q [ &quot;caption=&quot; q ] &quot;}&quot; ]
+          | &quot;::usecases[&quot; path &quot;]&quot; [ &quot;{&quot; &quot;title=&quot; q &quot;}&quot; ] ;
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>required</th>
+<th>values</th>
+<th>default</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Title</code></td>
+<td>no</td>
+<td>text</td>
+<td>-</td>
+<td>Title block.</td>
+</tr>
+<tr>
+<td><code>Subtitle</code></td>
+<td>no</td>
+<td>text</td>
+<td>-</td>
+<td>Title block.</td>
+</tr>
+<tr>
+<td><code>Author</code></td>
+<td>no</td>
+<td>text</td>
+<td>-</td>
+<td>Title block.</td>
+</tr>
+<tr>
+<td><code>Date</code></td>
+<td>no</td>
+<td>text</td>
+<td>-</td>
+<td>Title block.</td>
+</tr>
+</tbody></table>
+<ul>
+<li>The body is CommonMark + GFM tables; callouts use <code>&gt; [!NOTE]</code>.</li>
+<li><code>::diagram[path]{view=&quot;overview&quot; caption=&quot;…&quot;}</code> embeds a live figure; <code>view</code> defaults to the first view.</li>
+<li><code>::usecases[path]{title=&quot;…&quot;}</code> prints one specification table per use case. The CLI prints the same tables: <code>ddr spec -format html|md|json file.ddr</code>.</li>
+<li>An unknown file or view shows an inline error box instead of failing the page.</li>
+<li><code>ddr check</code> and the MCP <code>check</code> tool are for <code>.ddr</code> files only: given a <code>.tdr</code> document they report only E108 (a file named <code>.tdr</code>, or a file without a <code>.ddr</code> extension whose header has no <code>Type:</code> and ends with <code>---</code>). Check each embedded <code>.ddr</code> file instead.</li>
+</ul>
+<p>Example (<code>docs/examples/document.tdr</code>):</p>
+<pre><code class="language-tdr">Title: Online Store requirements
+Author: Product Team
+---
+
+# Introduction
+
+This document describes the Online Store. Each figure is a live view of a
+`.ddr` file, so it stays in sync with the diagram source.
+
+::diagram[diagrams/usecase.ddr]{view=&quot;overview&quot; caption=&quot;Use cases&quot;}
+
+## Use case specifications
+
+::usecases[diagrams/usecase.ddr]{title=&quot;&quot;}
+</code></pre>
+<!-- end-types -->
+</body>
+</html>

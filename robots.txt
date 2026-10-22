@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://fastering.thedev.id/ddr-free/sitemap.xml
